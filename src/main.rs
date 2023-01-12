@@ -61,42 +61,42 @@ async fn get_all_users(users: web::Data<Users>) -> Result<impl Responder> {
 }
 
 
-#[get("/api/post_to_elastic")]
-async fn post_all_users_to_elastic(users: web::Data<Users>) -> Result<impl Responder> {
-    let client = reqwest::Client::new();
-    let url = "http://127.0.0.1:9201/test1";
-    // let new_index = settings{
-    //         number_of_shards: 3,
-    //         number_of_replicas: 3
-    // };
+// #[get("/api/post_to_elastic")]
+// async fn post_all_users_to_elastic(users: web::Data<Users>) -> Result<impl Responder> {
+//     let client = reqwest::Client::new();
+//     let url = "http://127.0.0.1:9201/test1";
+//     // let new_index = settings{
+//     //         number_of_shards: 3,
+//     //         number_of_replicas: 3
+//     // };
 
     
-    let new_index = json!(
-        r#"{"settings" : {"index" : {"number_of_shards" : 5,"number_of_replicas" : 2}}}"#
-    );
+//     let new_index = json!(
+//         r#"{"settings" : {"index" : {"number_of_shards" : 5,"number_of_replicas" : 2}}}"#
+//     );
 
-    let resp1 = 
-        client
-        .put(url)
-        // .json(&new_index)
-        // .header("Connection", "keep-alive")
-        .send()
-        .await;
+//     let resp1 = 
+//         client
+//         .put(url)
+//         // .json(&new_index)
+//         // .header("Connection", "keep-alive")
+//         .send()
+//         .await;
 
-    let resp2= 
-        client
-        .put(url)
-        .json(&users)
-        .send()
-        .await;
+//     let resp2= 
+//         client
+//         .put(url)
+//         .json(&users)
+//         .send()
+//         .await;
 
-        println!("resp1 {:#?}", resp1);
-        println!("resp2 {:#?}", resp2);
+//         println!("resp1 {:#?}", resp1);
+//         println!("resp2 {:#?}", resp2);
 
 
 
-    Ok(web::Json(users.user_list.clone()))
-}
+//     Ok(web::Json(users.user_list.clone()))
+// }
 
 #[derive(Serialize, Debug, Clone, Deserialize)]
 struct SearchTerm{
