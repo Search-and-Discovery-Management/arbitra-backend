@@ -1,24 +1,13 @@
-use std::collections::HashMap;
+use reqwest::{Url, StatusCode};
 use serde_json::{Value, json};
 use actix_web::{get, post, web::{self, Data}, App, HttpServer, Responder, Result, delete, put};
 use serde::{Serialize, Deserialize};
-
-#[derive(Serialize, Debug, Clone, Deserialize)]
-struct User {
-    name: String,
-    password: String,
-
-}
-
-#[derive(Serialize, Debug, Clone, Deserialize)]
-struct UserSearch {
-    name: String
-}
-
-#[derive(Serialize, Debug)]
-struct Users {
-    user_list: Vec<User>
-}
+use elasticsearch::{
+    Elasticsearch,
+    Error,
+    http::transport::{TransportBuilder,SingleNodeConnectionPool}, 
+    indices::{IndicesExistsParts, IndicesCreateParts},
+};
 
 // #[derive(Serialize, Debug)]
 // struct settings {
@@ -26,139 +15,136 @@ struct Users {
 //     number_of_replicas: u32
 // }
 
+#[derive(Serialize, Clone, Deserialize)]
+struct SearchTermJson{
+    search_term: String,
+    count: u64
+}
 
-#[post("/api/add_user")]
-async fn add_user(data: web::Json<User>, mut users: web::Data<Users>) -> Result<impl Responder> {
+
+#[derive(Serialize, Clone, Deserialize)]
+struct NewData{
+    // TODO: Datatypes
+    id: u64,
+}
+
+#[post("/api/add_data")]
+async fn add_data_to_index(data: web::Json<NewData>, client: Data<Elasticsearch>) -> Result<impl Responder> {
     // let (name, password) = data.into_inner();
 
-    Ok(web::Json(users.user_list.clone()))
+    // Ok(web::Json(users.user_list.clone()))
+    Ok(web::Json(data.clone()))
 }
 
-#[put("/api/update_user")]
-async fn update_user(data: web::Json<User>, mut users: web::Data<Users>) -> Result<impl Responder> {
+#[put("/api/update_data")]
+async fn update_data_on_index(updated_data: web::Json<NewData>, client: Data<Elasticsearch>) -> Result<impl Responder> {
+    // Update data in index
+
+    // Ok(web::Json(users.user_list.clone()))
+    Ok(web::Json(updated_data.clone()))
+}
+
+#[delete("/api/delete_data")]
+async fn delete_data_on_index(search_term: web::Json<SearchTermJson>, client: Data<Elasticsearch>) -> Result<impl Responder> {
+
+    // Deletes the data inside the index
+
+    // Ok(web::Json(users.user_list.clone()))
+    Ok(web::Json(search_term.clone()))
+}
+
+#[get("/api/get_index")]
+async fn get_index(search_term: web::Json<SearchTermJson>, client: Data<Elasticsearch>) -> Result<impl Responder> {
+
+    // if exists: return values in index
+
+    // Ok(web::Json(users.user_list.clone()))
+    Ok(web::Json(search_term.clone()))
+}
+
+// #[get("/api/get_all_available_index")]
+// async fn get_all_available_index(search_term: web::Data<SearchTermJson>, client: Data<Elasticsearch>) -> Result<impl Responder> {
+
+//     // if exists: return all available indexes
+//     let index_to_find = data;
+
+//     // Ok(web::Json(users.user_list.clone()))
+
+// }
+
+#[post("/api/index_search")]
+async fn search_in_index(data: web::Json<SearchTermJson>, client: Data<Elasticsearch>) -> Result<impl Responder> {
     // let (name, password) = data.into_inner();
+    let index_to_find = data;
 
-    Ok(web::Json(users.user_list.clone()))
+    // Ok(web::Json(users.user_list.clone()))
+    Ok(web::Json(index_to_find.clone()))
 }
-
-#[delete("/api/delete_user")]
-async fn delete_user(name: web::Json<UserSearch>, mut users: web::Data<Users>) -> Result<impl Responder> {
-
-    Ok(web::Json(users.user_list.clone()))
-}
-
-#[get("/api/user")]
-async fn get_certain_user(name: web::Json<UserSearch>, users: web::Data<Users>) -> Result<impl Responder> {
-
-    Ok(web::Json(users.user_list.clone()))
-}
-
-
-#[get("/api/users")]
-async fn get_all_users(users: web::Data<Users>) -> Result<impl Responder> {
-
-    Ok(web::Json(users.user_list.clone()))
-}
-
-
-// #[get("/api/post_to_elastic")]
-// async fn post_all_users_to_elastic(users: web::Data<Users>) -> Result<impl Responder> {
-//     let client = reqwest::Client::new();
-//     let url = "http://127.0.0.1:9201/test1";
-//     // let new_index = settings{
-//     //         number_of_shards: 3,
-//     //         number_of_replicas: 3
-//     // };
-
-    
-//     let new_index = json!(
-//         r#"{"settings" : {"index" : {"number_of_shards" : 5,"number_of_replicas" : 2}}}"#
-//     );
-
-//     let resp1 = 
-//         client
-//         .put(url)
-//         // .json(&new_index)
-//         // .header("Connection", "keep-alive")
-//         .send()
-//         .await;
-
-//     let resp2= 
-//         client
-//         .put(url)
-//         .json(&users)
-//         .send()
-//         .await;
-
-//         println!("resp1 {:#?}", resp1);
-//         println!("resp2 {:#?}", resp2);
-
-
-
-//     Ok(web::Json(users.user_list.clone()))
-// }
-
-#[derive(Serialize, Debug, Clone, Deserialize)]
-struct SearchTerm{
-    term: String
-}
-
-// #[get("/api/search/{term}")]
-// async fn find_search_term(search_term: web::Path<SearchTerm>) -> Result<impl Responder> {
-//     let client = reqwest::Client::new();
-//     let url = "http://127.0.0.1:9201/test1";
-//     // let new_index = settings{
-//     //         number_of_shards: 3,
-//     //         number_of_replicas: 3
-//     // };
-
-    
-//     let new_index = json!(r#"
-//         {
-//             "settings": {
-//                 "number_of_shards": 3,
-//                 "number_of_replicas": 2
-//             }
-//         }"#);
-
-//     let resp1 = 
-//         client
-//         .post(url)
-//         .json(&new_index)
-//         .send()
-//         .await;
-
-//     let resp2= 
-//         client
-//         .post(url)
-//         .json(&users)
-//         .send()
-//         .await;
-
-//     Ok(web::Json(users.user_list.clone()))
-// }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let client = reqwest::Client::new();
-    let mut x = Data::new(Users{
-        user_list: vec![
-            User{
-                name:"Test".to_string(), 
-                password: "Password".to_string()
-        }]
-    });
+    let client = create_client().unwrap();
+    // let mut x = Data::new(Users{
+    //     user_list: vec![
+    //         User{
+    //             name:"Test".to_string(), 
+    //             password: "Password".to_string()
+    //     }]
+    // });
     HttpServer::new(move || {
         App::new()
-            .app_data(x.clone())
-            .service(get_all_users)
-            .service(get_certain_user)
-            .service(delete_user)
-            .service(add_user)
-            .service(update_user)
-            .service(post_all_users_to_elastic)
+            // .app_data(x.clone())
+            .app_data(client.clone())
+            .service(add_data_to_index)
+            .service(update_data_on_index)
+            .service(delete_data_on_index)
+            // .service(get_all_available_index)
+            .service(search_in_index)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
     .await
+}
+
+fn create_client() -> Result<Elasticsearch, Error> {
+    let url = Url::parse("http://127.0.0.1:9201").unwrap();
+
+    let conn_pool = SingleNodeConnectionPool::new(url);
+    let builder = TransportBuilder::new(conn_pool);
+
+    let transport = builder.build()?;
+    Ok(Elasticsearch::new(transport))
+}
+
+async fn create_index(client: &Elasticsearch, index: &str) -> Result<(), Error> {
+    let exists = client
+        .indices()
+        .exists(IndicesExistsParts::Index(&[index]))
+        .send()
+        .await?;
+
+    if exists.status_code() == StatusCode::NOT_FOUND {
+        let response = client
+            .indices()
+            .create(IndicesCreateParts::Index(index))
+            .body(json!(
+                {
+                  "mappings": { 	
+                    "dynamic":"true"
+                  },
+                  "settings": {
+                    "index.number_of_shards": 3,
+                    "index.number_of_replicas": 0,
+                  }
+                }
+            ))
+            .send()
+            .await?;
+
+        if !response.status_code().is_success() {
+            println!("Error found: {:#?}", response);
+        }
+    }
+
+    Ok(())
 }
