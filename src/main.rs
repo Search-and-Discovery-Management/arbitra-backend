@@ -1,43 +1,76 @@
 use reqwest::{Url, StatusCode};
 use serde_json::{Value, json};
 use actix_web::{get, post, web::{self, Data}, App, HttpServer, Responder, Result, delete, put};
-use serde::{Serialize, Deserialize};
+// use serde::{Serialize, Deserialize};
 use elasticsearch::{
     Elasticsearch,
     Error,
     http::transport::{TransportBuilder,SingleNodeConnectionPool}, 
-    indices::{IndicesExistsParts, IndicesCreateParts},
+    indices::{IndicesExistsParts, IndicesCreateParts}, SearchParts,
 };
+use env_logger;
 
-// #[derive(Serialize, Debug)]
-// struct settings {
-//     number_of_shards: u32,
-//     number_of_replicas: u32
+// #[derive(Serialize, Clone, Deserialize)]
+// struct SearchTermJson{
+//     search_term: String,
+//     count: u64
 // }
 
-#[derive(Serialize, Clone, Deserialize)]
-struct SearchTermJson{
-    search_term: String,
-    count: u64
-}
+// #[derive(Serialize, Clone, Deserialize)]
+// struct NewData{
+//     // TODO: Datatypes
+//     id: u64,
+// }
+
+/*
+
+JSON Data Format (Might change):
+    {
+        Index: index_name
+        Operation: PUT
+        Data: {
+            id
+            name
+            password
+            etc
+            ...
+        }
+    }
+    From serde_json value, extract: 
+    let x = var.get("str");
+*/
 
 
-#[derive(Serialize, Clone, Deserialize)]
-struct NewData{
-    // TODO: Datatypes
-    id: u64,
-}
+/*
+
+JSON Data Format (Might change):
+    {
+        Index: index_name
+        Operation: GET
+        SearchTerm: ABC
+        Data: {
+            id
+            name
+            password
+            etc
+            ...
+        }
+    }
+    From serde_json value, extract: 
+    let x = var.get("str");
+*/
+
 
 #[post("/api/add_data")]
-async fn add_data_to_index(data: web::Json<NewData>, client: Data<Elasticsearch>) -> Result<impl Responder> {
+async fn add_data_to_index(data: web::Json<Value>, elasticsearch_client: Data::<Elasticsearch>) -> Result<impl Responder> {
     // let (name, password) = data.into_inner();
-
+    
     // Ok(web::Json(users.user_list.clone()))
     Ok(web::Json(data.clone()))
 }
 
 #[put("/api/update_data")]
-async fn update_data_on_index(updated_data: web::Json<NewData>, client: Data<Elasticsearch>) -> Result<impl Responder> {
+async fn update_data_on_index(updated_data: web::Json<Value>, elasticsearch_client: Data::<Elasticsearch>) -> Result<impl Responder> {
     // Update data in index
 
     // Ok(web::Json(users.user_list.clone()))
@@ -45,7 +78,7 @@ async fn update_data_on_index(updated_data: web::Json<NewData>, client: Data<Ela
 }
 
 #[delete("/api/delete_data")]
-async fn delete_data_on_index(search_term: web::Json<SearchTermJson>, client: Data<Elasticsearch>) -> Result<impl Responder> {
+async fn delete_data_on_index(search_term: web::Json<Value>, elasticsearch_client: Data::<Elasticsearch>) -> Result<impl Responder> {
 
     // Deletes the data inside the index
 
@@ -54,52 +87,106 @@ async fn delete_data_on_index(search_term: web::Json<SearchTermJson>, client: Da
 }
 
 #[get("/api/get_index")]
-async fn get_index(search_term: web::Json<SearchTermJson>, client: Data<Elasticsearch>) -> Result<impl Responder> {
+async fn get_index(data: web::Json<Value>, elasticsearch_client: Data::<Elasticsearch>) -> Result<impl Responder> {
 
     // if exists: return values in index
+    // println!("{:#?}", search_term.clone().as_array());
+    // println!("{:#?}", search_term.clone());
 
-    // Ok(web::Json(users.user_list.clone()))
-    Ok(web::Json(search_term.clone()))
+
+    // let root = search_term.get("settings");
+    
+    println!("{:#?}", data);
+    let index = data.get("index");
+    if index == None {
+        println!("{:#?}", index);
+        println!("Fail");
+
+    }
+
+    let resp = elasticsearch_client
+    .search(SearchParts::Index(&[&(index.unwrap().to_string())]))
+    .body(json!({
+        "query": {
+            "match": {
+                // "body": &search_term
+            }
+        }
+    }))
+    .send()
+    .await; // missing "?"
+    
+    // let resp = elasticsearch_client
+    //     .search(SearchParts::Index(&[search_term.get("index")]))
+    //     .body(json!({
+    //         "query": {
+    //             "match": {
+    //                 "body": search_term.get("SearchTerm")
+    //             }
+    //         }
+    //     }));
+
+
+    println!("{:#?}", resp);
+    Ok(web::Json(data.clone()))
+
 }
 
-// #[get("/api/get_all_available_index")]
-// async fn get_all_available_index(search_term: web::Data<SearchTermJson>, client: Data<Elasticsearch>) -> Result<impl Responder> {
+#[post("/api/find_in_index")]
+async fn search_in_index(data: web::Json<Value>, elasticsearch_client: Data::<Elasticsearch>) -> Result<impl Responder> {
 
-//     // if exists: return all available indexes
-//     let index_to_find = data;
+    // let index_to_find = data;
+    // println!("{:#?}", index_to_find);
+    // Ok(web::Json(index_to_find.clone()))
 
-//     // Ok(web::Json(users.user_list.clone()))
+    println!("{:#?}", data);
+    let index = data.get("index");
+    if index == None {
+        println!("{:#?}", index);
+        println!("Fail");
 
-// }
+    }
 
-#[post("/api/index_search")]
-async fn search_in_index(data: web::Json<SearchTermJson>, client: Data<Elasticsearch>) -> Result<impl Responder> {
-    // let (name, password) = data.into_inner();
-    let index_to_find = data;
+    let search_term = data.get("SearchTerm");
+    if search_term == None {
+        println!("{:#?}", search_term);
+        println!("Search term fail");
+    }
 
-    // Ok(web::Json(users.user_list.clone()))
-    Ok(web::Json(index_to_find.clone()))
+    let resp = elasticsearch_client
+    .search(SearchParts::Index(&[&(index.unwrap().to_string())]))
+    .body(json!({
+        "query": {
+            "match": {
+                "body": &search_term
+            }
+        }
+    }))
+    .send()
+    .await; // missing "?"
+
+    Ok(web::Json(data.clone()))
+
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Debug mode
+    std::env::set_var("RUST_LOG", "debug");
+    env_logger::init();
+
+    // Create ElasticSearch client
     let client = create_client().unwrap();
-    // let mut x = Data::new(Users{
-    //     user_list: vec![
-    //         User{
-    //             name:"Test".to_string(), 
-    //             password: "Password".to_string()
-    //     }]
-    // });
+
+    // Start server
     HttpServer::new(move || {
         App::new()
-            // .app_data(x.clone())
-            .app_data(client.clone())
+            .app_data(Data::new(client.clone()))
             .service(add_data_to_index)
             .service(update_data_on_index)
             .service(delete_data_on_index)
-            // .service(get_all_available_index)
             .service(search_in_index)
+            .service(get_index)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
@@ -117,12 +204,14 @@ fn create_client() -> Result<Elasticsearch, Error> {
 }
 
 async fn create_index(client: &Elasticsearch, index: &str) -> Result<(), Error> {
+    // Check if index exists
     let exists = client
         .indices()
         .exists(IndicesExistsParts::Index(&[index]))
         .send()
         .await?;
 
+    // If doesnt exist, create
     if exists.status_code() == StatusCode::NOT_FOUND {
         let response = client
             .indices()
