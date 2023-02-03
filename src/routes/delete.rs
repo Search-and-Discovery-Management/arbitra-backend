@@ -5,7 +5,7 @@ use crate::EClient;
 
 /*
 
-JSON Data Format For Delete(Might change):
+JSON Data Format For Delete:
     {
         index: index_name
         document_id: id
@@ -13,24 +13,19 @@ JSON Data Format For Delete(Might change):
     From serde_json value, extract: 
     let x = var.get("str");
 */
+ 
+/// Deletes document in index
+/// 
+/// index: index_name
+/// document_id: Document ID
+#[delete("/api/delete_document")]
+pub async fn delete_data_on_index(document_to_delete: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> Result<impl Responder> {
 
-#[delete("/api/delete_data")]
-pub async fn delete_data_on_index(search_term: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> Result<impl Responder> {
+    let index = document_to_delete.get("index").map(|val| val.as_str().unwrap());
 
-    // Deletes the data inside the index
-
-    // Ok(web::Json(users.user_list.clone()))
-
-    // Index: index_name
-    // Document_id: id
-
-    // TODO: Check if either index or doc_id is empty, early return
-    let index = search_term.get("index").unwrap().to_string();
-    let doc_id = search_term.get("document_id").unwrap().to_string();
+    let doc_id = document_to_delete.get("document_id").map(|val| val.as_str().unwrap());
     
-    let status = elasticsearch_client.delete_document(&index, &doc_id).await;
+    let resp = elasticsearch_client.delete_document(index, doc_id).await;
 
-    println!("STATUS: {:#?}", status);
-
-    Ok(web::Json(search_term.clone()))
+    Ok(web::Json(resp))
 }

@@ -1,101 +1,73 @@
 use actix_web::web;
 use actix_web::{get, web::{Data}, Responder, Result};
-use serde_json::{Value, json};
+use serde_json::Value;
 use crate::EClient;
+// mod error;
+// use crate::errors::*;
 
-/*
+// JSON Data Format For Get:
+// ```
+//     {
+//         "index": index_name
+//         "search_term": ABC
+//         "search_in": [
+//             name,
+//             password,
+//             ...
+//         ]
+//         "return_fields": [
+//             name,
+//             password,
+//             ...
+//         ]
+//     }
+// ```
+// From serde_json value, extract: 
+// let x = var.get("str");
 
-JSON Data Format For Get(Might change):
-    {
-        index: index_name
-        search_term: ABC
-        Search_in: (field_name)
-        return_fields: {
-            id
-            name
-            password
-            ...
-        }
-    }
-    From serde_json value, extract: 
-    let x = var.get("str");
-*/
 
-
-#[get("/api/find_in_index")]
+/// Returns documents with either match_all or multi_match
+/// 
+/// match_all if either "search_term" or "search_in" field is not supplied
+/// 
+/// multi_match if "search_term" and "search_in" is supplied
+/// 
+/// If "return_fields" is not supplied, defaults to returning everything
+/// 
+/// ```
+/// Input:
+///     {
+///         "index": "index_name",
+///         "search_term": "term",
+///         "search_in": "field_1,field_2,...",
+///         "return_fields": "field_1,field_2,...",
+///         "from": 123, // TODO
+///         "count": 40 // TODO
+///     }
+/// ```
+#[get("/api/search_documents")]
 pub async fn search_in_index(data: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> Result<impl Responder> {
 
-    // println!("{:#?}", data);
     let index = data.get("index");
-    if index == None {
-        println!("Fail");
-        
-    }
-    println!("{:#?}", index.unwrap());
-    // println!("{:#?}", index.unwrap());
 
-    // let x = index.unwrap().as_str();
+    let search_term = data.get("search_term").map(|val| val.as_str().unwrap());
 
+    let fields_to_search = data.get("search_in").map(|val| val.as_str().unwrap());
 
-    let search_term: String = 
-    
-        match data.get("SearchTerm"){
-            None => {
-                println!("Search term not supplied");
-                // return Ok(web::Json(data.clone()));
-                "".to_string()
-            },
-            Some(x) => {
-                println!("Search Term: {:#?}", x);
-                x.to_string()
-            }
-        };
+    let fields_to_return = data.get("return_fields").map(|val| val.as_str().unwrap());
 
+    let resp = elasticsearch_client.find_document(index.unwrap().as_str().unwrap(), search_term, fields_to_search, fields_to_return, 0, 20).await;
 
-        let fields_to_return = 
-    
-            match data.get("return_fields"){
-                None => {
-                    println!("Search term not supplied");
-                    // return Ok(web::Json(data.clone()));
-                    // vec!["*"]
-                    // json!({"*"})
-                    "".to_string()
-                },
-                Some(x) => {
-                    println!("Fields: {:#?}", x);
-                    x.to_string()
-                }
-            };
-        println!("fields_to_return: {:#?}", fields_to_return);
-
-
-    let resp = elasticsearch_client.find_document(index.unwrap().as_str().unwrap(), Some(&search_term), None, Some(fields_to_return)).await;
-
-    println!("{:#?}", resp);
-
-    // let resp = elasticsearch_client
-    // .search(SearchParts::Index(&[&(index.unwrap().to_string())]))
-    // .body(json!({
-    //     "query": {
-    //         "match": {
-    //             "body": &search_term
-    //         }
-    //     }
-    // }))
-    // .send()
-    // .await; // missing "?"
-
-    Ok(web::Json(data.clone()))
+    Ok(web::Json(resp))
 }
 
-
+/// Returns list of index
+/// 
+/// Does not accept json input
 #[get("/api/get_index_list")]
 async fn get_all_index(elasticsearch_client: Data::<EClient>) -> Result<impl Responder> {
-
     // if exists: return a list of index
     let resp = elasticsearch_client.get_all_index().await;
 
-    Ok(web::Json(resp.clone()))
-
+    Ok(web::Json(resp))
 }
