@@ -1,11 +1,12 @@
+use actix_web::HttpResponse;
 use elasticsearch::{
     Elasticsearch,
     http::{transport::{TransportBuilder,SingleNodeConnectionPool}}, 
-    indices::{IndicesExistsParts, IndicesCreateParts}, 
+    indices::{IndicesExistsParts, IndicesCreateParts, IndicesPutMappingParts}, 
     IndexParts, 
     SearchParts, 
     cat::CatIndicesParts,
-    DeleteParts, UpdateParts
+    DeleteParts, UpdateParts, GetSourceParts
 };
 use reqwest::{Url, StatusCode};
 use serde_json::{json, Value};
@@ -47,7 +48,7 @@ impl EClient {
     /// index: Index Name
     /// 
     /// TODO: Change return type (StatusCode?)
-    pub async fn create_index(&self, index: &str) -> StatusCode{
+    pub async fn create_index(&self, index: &str) -> HttpResponse{
         // Check if index exists
         let exists = self.elastic
             .indices()
@@ -58,7 +59,7 @@ impl EClient {
     
         // If doesnt exist, create
         if exists.status_code() == StatusCode::NOT_FOUND {
-            let response = self.elastic
+            let resp = self.elastic
                 .indices()
                 .create(IndicesCreateParts::Index(index))
                 .body(json!(
@@ -76,10 +77,11 @@ impl EClient {
                 .await
                 .unwrap();
     
-            return response.status_code();
+            // return response.status_code();
+            return HttpResponse::build(resp.status_code()).finish();
         }
     
-        exists.status_code()
+        HttpResponse::build(exists.status_code()).finish()
     }
 
     /// Inserts a new document into index
@@ -97,16 +99,74 @@ impl EClient {
     /// ```
     /// Returns status code wheter or not it succeed, such as 404 if index not found
     /// 
-    /// TODO: Return a json of statuscode + reason of failure
-    pub async fn insert_document(&self, index: &str, data: Value) -> StatusCode{
+    /// TODO: Check if its first entry, if so, do not set dynamic mode until after insert
+    pub async fn insert_document(&self, index: &str, data: Value, dynamic_mode: Option<String>) -> HttpResponse{
+
+        let exists = self.elastic
+            .indices()
+            .exists(IndicesExistsParts::Index(&[index]))
+            .send()
+            .await
+            .unwrap();
+    
+            if !exists.status_code().is_success() {
+                return HttpResponse::build(exists.status_code()).finish();
+            }
+            
+        match dynamic_mode {
+            Some(mode) => {
+                let set_dynamic = json!({
+                    "dynamic": mode
+                });
         
-        let response = self.elastic
+                self.update_index_mappings(index, set_dynamic).await;
+            },
+            None => (),
+        }
+
+        let resp = self.elastic
             .index(IndexParts::Index(index))
             .body(data)
             .send()
             .await
             .unwrap();
-        response.status_code()
+
+        let set_dynamic = json!({
+            "dynamic": "strict"
+        });
+            
+        self.update_index_mappings(index, set_dynamic).await;
+        // response.status_code()
+        return HttpResponse::build(resp.status_code()).finish();
+    }
+
+    pub async fn update_index_mappings(&self, index: &str, mappings: Value) -> HttpResponse{
+
+        let exists = self.elastic
+            .indices()
+            .exists(IndicesExistsParts::Index(&[index]))
+            .send()
+            .await
+            .unwrap();
+    
+        if !exists.status_code().is_success() {
+            return HttpResponse::build(exists.status_code()).finish();
+        }
+
+        let resp = self.elastic
+            .indices()
+            .put_mapping(IndicesPutMappingParts::Index(&[index]))
+            .body(mappings)
+            .send()
+            .await
+            .unwrap();
+
+        let status_code = resp.status_code();
+
+        // println!("{:#?}", resp);
+        // println!("{:#?}", resp.json::<Value>().await.unwrap());
+
+        return HttpResponse::build(status_code).finish();
     }
 
     /// Updates existing document on an index
@@ -132,7 +192,7 @@ impl EClient {
     /// 
     /// Error:
     ///     json!{
-    ///         "error_message": "Not Found",
+    ///         "message": "Not Found",
     ///         "status_code": 404
     ///     }
     /// 
@@ -143,57 +203,31 @@ impl EClient {
     ///     }
     /// 
     /// ```
-    pub async fn update_document(&self, index: Option<&str>, document_id: Option<&str>, data: Option<Value>) -> Value{
-
-        let idx = match index{
-            Some(val) => val,
-            None => return json!({
-                "error_message": "Index not supplied",
-                "status_code": StatusCode::BAD_REQUEST.as_u16()
-            })
-        };
-
-        let id = match document_id{
-            Some(val) => val,
-            None => return json!({
-                "error_message": "Document id not supplied",
-                "status_code": StatusCode::BAD_REQUEST.as_u16()
-            })
-        };
-
-        let to_update = match data{
-            Some(val) => val,
-            None => return json!({
-                "error_message": "Data not supplied",
-                "status_code": StatusCode::BAD_REQUEST.as_u16()
-            })
-        };
+    pub async fn update_document(&self, index: &str, document_id: &str, data: Value) -> HttpResponse {//(StatusCode, Value){
 
         let resp = self.elastic
-            .update(UpdateParts::IndexId(idx, id))
-            .body(to_update)
+            .update(UpdateParts::IndexId(index, document_id))
+            .body(data)
             .send()
             .await
             .unwrap();
 
-        println!("{:#?}", resp);
         let status_code = resp.status_code();
 
-        let json_resp = resp.json::<Value>().await.unwrap();
+        // let json_resp = resp.json::<Value>().await.unwrap();
+        
+        HttpResponse::build(status_code).finish()
+        // println!("{:#?}", json_resp);
 
-        println!("{:#?}", json_resp);
+        // let message = if !status_code.is_success() {
+        //     &json_resp["error"]
+        // } else {
+        //     &json_resp["error"]
+        // };
 
-        if !status_code.is_success() {
-            return json!({
-                "status_code": status_code.as_u16(),
-                "error_message": json_resp["error"]["reason"]
-            });
-        }
-
-        json!({
-            "status_code": status_code.as_u16(),
-            "message": json_resp["result"]
-        })
+        // (status_code, json!({
+        //     "message": json_resp["error"]["reason"]
+        // }))
     }
 
     /// Deletes document on an index
@@ -203,27 +237,11 @@ impl EClient {
     /// id: Document id (ex: BnqR-YUBLRm6224CUtK7)
     /// 
     /// Returns status code whether or not it succeed, such as 200 if succeed, 404 if either index or document is not found
-    pub async fn delete_document(&self, index: Option<&str>, document_id: Option<&str>) -> Value{
-
-        let idx = match index{
-            Some(val) => val,
-            None => return json!({
-                "error_message": "Index not supplied",
-                "status_code": StatusCode::BAD_REQUEST.as_u16()
-            })
-        };
-
-        let id = match document_id{
-            Some(val) => val,
-            None => return json!({
-                "error_message": "Document id not supplied",
-                "status_code": StatusCode::BAD_REQUEST.as_u16()
-            })
-        };
+    pub async fn delete_document(&self, index: &str, document_id: &str) -> HttpResponse{
 
         let resp = 
             self.elastic
-            .delete(DeleteParts::IndexId(idx, id))
+            .delete(DeleteParts::IndexId(index, document_id))
             .send()
             .await
             .unwrap();
@@ -235,17 +253,22 @@ impl EClient {
             .await
             .unwrap();
 
-        if !status_code.is_success(){
-            return json!({
-                "status_code": status_code.as_u16(),
-                "error_message": json_resp["result"]
-            });
-        }
+        // if !status_code.is_success(){
+        //     return json!({
+        //         "status_code": status_code.as_u16(),
+        //         "error_message": json_resp["result"]
+        //     });
+        // }
 
-        json!({
-            "status_code": status_code.as_u16(),
-            "message": json_resp["result"]
-        })
+        HttpResponse::build(status_code).json(
+            json!({
+                "message": json_resp["result"]
+            })
+        )
+
+        // (status_code, json!({
+        //     "message": json_resp["result"]
+        // }))
     }
 
     /// Finds document in index
@@ -277,7 +300,7 @@ impl EClient {
     /// 
     /// }
     /// ```
-    pub async fn find_document(&self, index: &str, search_term: Option<&str>, search_on: Option<&str>, retrieve_field: Option<&str>, from: i64, count: i64) -> Value{
+    pub async fn search_index(&self, index: &str, search_term: Option<String>, search_on: Option<String>, retrieve_field: Option<String>, from: i64, count: i64) -> HttpResponse{
 
         let fields_to_search: Option<Vec<String>> = search_on.map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
 
@@ -330,34 +353,87 @@ impl EClient {
 
 
         if !status_code.is_success() {
-            return json!({
+            return HttpResponse::build(status_code).json(json!({
                 "status_code": status_code.as_u16(),
                 "error_message": json_resp["error"]["reason"]
-            });
+            }));
         }
         
-        json!({
+        HttpResponse::build(status_code).json(json!({
             "status": status_code.as_u16(),
             "took": json_resp["took"],
             "data": json_resp["hits"]["hits"],
             "total_data": json_resp["hits"]["total"]["value"],
             "match_type": json_resp["hits"]["total"]["relation"]
-        })
+        }))
     }
 
 
-    /// Returns a list of all index
-    pub async fn get_all_index(&self) -> Value{
-        let response = self.elastic
+    /// Returns either a list of index if index is not supplied, or the specified index
+    pub async fn get_index(&self, index: Option<String>) -> HttpResponse{
+
+        let idx = match index {
+            Some(x) => x,
+            None => "*".to_string()
+        };
+
+        let resp = self.elastic
             .cat()
-            .indices(CatIndicesParts::Index(&["*"]))
+            .indices(CatIndicesParts::Index(&[&idx]))
             .format("json")
             .send()
             .await
-            .unwrap()
-            .json::<Value>()
-            .await;
-        response.unwrap()
+            .unwrap();
+
+        let status_code = resp.status_code();
+        
+        let json_resp = resp.json::<Value>().await.unwrap();
+
+
+        if !status_code.is_success() {
+            return HttpResponse::build(status_code).json(json!({
+                "status_code": status_code.as_u16(),
+                "error_message": json_resp["error"]["reason"]
+            }));
+        }
+
+        HttpResponse::build(status_code).json(json_resp)
+    }
+
+    pub async fn get_document(&self, index: String, doc_id: String, retrieve_fields: Option<String>) -> HttpResponse{
+
+        let fields_to_return = match retrieve_fields {
+            Some(val) => val,
+            None => "*".to_string(),
+        };
+
+        // let resp = self.elastic
+        //     .get(GetParts::IndexId(&index, &doc_id))
+        //     .(source_includes)
+        //     .send()
+        //     .await
+        //     .unwrap();
+
+        let resp = self.elastic
+            .get_source(GetSourceParts::IndexId(&index, &doc_id))
+            ._source_includes(&[&fields_to_return])
+            .send()
+            .await
+            .unwrap();
+
+        let status_code = resp.status_code();
+        
+        let json_resp = resp.json::<Value>().await.unwrap();
+
+
+        if !status_code.is_success() {
+            return HttpResponse::build(status_code).json(json!({
+                "status_code": status_code.as_u16(),
+                "error_message": json_resp["error"]["reason"]
+            }));
+        }
+
+        HttpResponse::build(status_code).json(json_resp)
     }
 
 //    pub async fn find_document_paginated(&self, index: &str, paginate_search: Option<&str> ) -> Value{

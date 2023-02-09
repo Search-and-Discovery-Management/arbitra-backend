@@ -1,9 +1,8 @@
-use actix_web::web;
-use actix_web::{get, web::{Data}, Responder, Result};
+use actix_web::{web, HttpResponse};
+use actix_web::{get, web::{Data}};
 use serde_json::Value;
 use crate::EClient;
-// mod error;
-// use crate::errors::*;
+use crate::routes::{required_check_string, optional_check_string, optional_check_number};
 
 // JSON Data Format For Get:
 // ```
@@ -41,33 +40,82 @@ use crate::EClient;
 ///         "search_term": "term",
 ///         "search_in": "field_1,field_2,...",
 ///         "return_fields": "field_1,field_2,...",
-///         "from": 123, // TODO
-///         "count": 40 // TODO
+///         "from": 123,
+///         "count": 40
 ///     }
 /// ```
-#[get("/api/search_documents")]
-pub async fn search_in_index(data: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> Result<impl Responder> {
+#[get("/api/search")]
+pub async fn search_in_index(data: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
 
-    let index = data.get("index");
+    // let index = data.get("index");
 
-    let search_term = data.get("search_term").map(|val| val.as_str().unwrap());
+    let idx = match required_check_string(data.get("index"), "index"){
+        Ok(x) => x,
+        Err(x) => return x
+    };
 
-    let fields_to_search = data.get("search_in").map(|val| val.as_str().unwrap());
+    let search_term = match optional_check_string(data.get("search_term")){
+        Some(x) => Some(x),
+        None => None
+    };
 
-    let fields_to_return = data.get("return_fields").map(|val| val.as_str().unwrap());
+    let fields_to_search = match optional_check_string(data.get("search_in")){
+        Some(x) => Some(x),
+        None => None
+    };
 
-    let resp = elasticsearch_client.find_document(index.unwrap().as_str().unwrap(), search_term, fields_to_search, fields_to_return, 0, 20).await;
+    let fields_to_return = match optional_check_string(data.get("return_fields")){
+        Some(x) => Some(x),
+        None => None
+    };
 
-    Ok(web::Json(resp))
+
+    let from = match optional_check_number(data.get("from")){
+        Some(x) => x,
+        None => 0
+    }; 
+
+    let count = match optional_check_number(data.get("count")){
+        Some(x) => x,
+        None => 20
+    }; 
+
+    elasticsearch_client.search_index(&idx, search_term, fields_to_search, fields_to_return, from, count).await
 }
 
-/// Returns list of index
+/// Gets a document by its id
 /// 
-/// Does not accept json input
-#[get("/api/get_index_list")]
-async fn get_all_index(elasticsearch_client: Data::<EClient>) -> Result<impl Responder> {
-    // if exists: return a list of index
-    let resp = elasticsearch_client.get_all_index().await;
+/// Requires index and document id, with return fields as optional
+#[get("/api/document")]
+pub async fn get_document_by_id(data: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
 
-    Ok(web::Json(resp))
+    let idx = match required_check_string(data.get("index"), "index"){
+        Ok(x) => x,
+        Err(x) => return x
+    };
+
+    let document_id = match required_check_string(data.get("document_id"), "document id"){
+        Ok(x) => x,
+        Err(x) => return x
+    };
+
+    let fields_to_return = match optional_check_string(data.get("return_fields")){
+        Some(x) => Some(x),
+        None => None
+    };
+
+    elasticsearch_client.get_document(idx, document_id, fields_to_return).await
+}
+
+/// Returns list of index if index is not provided, returns specified index if provided
+#[get("/api/index")]
+async fn get_all_index(index: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
+    // if exists: return a list of index
+
+    let idx = match optional_check_string(index.get("index")){
+        Some(x) => Some(x),
+        None => None
+    };
+
+    elasticsearch_client.get_index(idx).await
 }

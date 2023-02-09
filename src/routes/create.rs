@@ -1,15 +1,12 @@
-use crate::EClient;
-use actix_web::{post, web::{self, Data}, Responder, Result};
-use reqwest::StatusCode;
-use serde_json::{Value, json};
+use crate::{EClient, routes::{required_check_value, required_check_string, optional_check_string, str_or_default_if_exists_in_vec}};
+use actix_web::{post, web::{self, Data}, HttpResponse};
+use serde_json::{Value};
 
 // Temporary hardcode to add test data
-
 #[post("/api/hardcoded_data_add")]
-pub async fn hardcoded_data_for_testing(elasticsearch_client: Data::<EClient>) -> impl Responder{
+pub async fn hardcoded_data_for_testing(elasticsearch_client: Data::<EClient>) -> HttpResponse{
 
     const INDEX: &str = "airplanes_v3";
-    
         
     let index_exists = elasticsearch_client.create_index(INDEX).await;
 
@@ -28,75 +25,74 @@ pub async fn hardcoded_data_for_testing(elasticsearch_client: Data::<EClient>) -
 
     let y = x.json::<Vec<Value>>().await.unwrap();
     for data in y {
-        elasticsearch_client.insert_document(INDEX, data).await;
+        elasticsearch_client.insert_document(INDEX, data, None).await;
     }
-    // println!("{:#?}", y);
 
-    // println!("{:#?}", elasticsearch_client.insert_document(INDEX, y).await);
-    // let successful = response.status_code().is_success();
-    "Hello {app_name}!" // temp: Avoid error
+    HttpResponse::Ok().finish()
 }
 
-/*
-JSON Data Format For Creating new document:
-    {
-        index: index_name
-        data: {
-            name
-            password
-            ...
-        }
-    }
-    From serde_json value, extract: 
-    let x = var.get("str");
-*/
+/// Inserts a new document, with 3 dynamic modes: true, false, strict
+/// 
+/// "true" -> allow creation of new fields
+/// 
+/// "false" -> does not allow creation of new fields, only inserts new entry to existing fields with the rest lost
+/// 
+/// "strict" -> does not insert if either partial or has new fields
+/// 
+/// Input example:
+/// 
+/// ```
+/// json!({
+///     "index": "test_index",
+///     "dynamic_mode": true, // OPTIONAL
+///     "data": {
+///         "name": "name1",
+///         "password": "password1",
+///         "etc": "etc1"
+///     }
+/// )}
+/// 
+/// ```
 
-#[post("/api/create_document")]
-pub async fn add_data_to_index(data: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> Result<impl Responder> {
+#[post("/api/document")]
+pub async fn add_data_to_index(data: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
 
-    let idx = match data.get("index"){
-            Some(val) => val.as_str().unwrap(),
-            None => return Ok(web::Json(json!({
-                "error_message": "Index not supplied",
-                "status_code": StatusCode::BAD_REQUEST.as_u16()
-            })))
-        };
-
-    let to_input = match data.get("data") {
-            Some(val) => val.clone(),
-            None => return Ok(web::Json(json!({
-                "error_message": "Data not supplied",
-                "status_code": StatusCode::BAD_REQUEST.as_u16()
-            }))),
+    let idx = match required_check_string(data.get("index"), "index"){
+        Ok(x) => x,
+        Err(x) => return x
     };
-    // println!("{:#?}", ind);
-    // println!("\n\n");
-    // println!("{:#?}", to_input);
-    let status = elasticsearch_client.insert_document(idx, to_input).await;
 
-    let x = json!({
-        "status": status.as_str()
-    });
-    Ok(web::Json(x))
+    let to_input = match required_check_value(data.get("data"), "data"){
+        Ok(x) => x,
+        Err(x) => return x
+    };
+
+    let set_dynamic_mode = match optional_check_string(data.get("dynamic_mode")){
+        Some (x) => Some(str_or_default_if_exists_in_vec(&x, vec!["true".to_string(), "false".to_string(), "strict".to_string()], "strict")),
+        None => None
+    };
+
+    elasticsearch_client.insert_document(&idx, to_input, set_dynamic_mode).await
 }
 
 /*
 JSON Data Format For Creating new Index:
     {
-        index: index_name
+        "index": index_name
     }
 */
 
-// Only creates index
+// Creates a new dynamic index
 
-#[post("/api/create_index")]
-pub async fn create_new_index(data: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> Result<impl Responder> {
-    let index_to_create = data.get("index");
+#[post("/api/index")]
+pub async fn create_new_index(data: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
 
-    let status = elasticsearch_client.create_index(index_to_create.unwrap().as_str().unwrap()).await;
+    let idx = match required_check_string(data.get("index"), "index"){
+        Ok(x) => x,
+        Err(x) => return x
+    };
 
-    println!("{:#?}", status);
-    Ok(web::Json(json!({
-        "status_code": status.as_u16()
-    })))
+    elasticsearch_client.create_index(&idx).await
+
+    // HttpResponse::build(status_code).finish()
 }
