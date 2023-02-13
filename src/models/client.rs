@@ -58,6 +58,11 @@ impl EClient {
             .unwrap();
     
         // If doesnt exist, create
+
+        // if exists.status_code() == 200 {
+        //     return HttpResponse::Alread
+        // }
+
         if exists.status_code() == StatusCode::NOT_FOUND {
             let resp = self.elastic
                 .indices()
