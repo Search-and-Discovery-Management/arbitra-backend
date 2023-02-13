@@ -1,74 +1,29 @@
-use std::sync::Mutex;
-
-use actix_web::{get, post, web::{self, Data}, App, HttpResponse, HttpServer, Responder, Result, delete, put};
-use serde::Serialize;
-
-#[derive(Serialize, Debug, Clone)]
-struct User {
-    name: String,
-    password: String,
-
-}
-
-#[derive(Serialize, Debug)]
-struct Users {
-    user_list: Vec<User>
-}
-
-#[post("/api/add_user/{name}/{password}")]
-async fn add_user(data: web::Path<(String, String)>, users: web::Data<Users>) -> Result<impl Responder> {
-    let (name, password) = data.into_inner();
-
-    Ok(web::Json(users.user_list.clone()))
-}
-
-
-
-
-#[put("/api/update_user/{name}/{password}")]
-async fn update_user(data: web::Path<(String, String)>, users: web::Data<Users>) -> Result<impl Responder> {
-    let (name, password) = data.into_inner();
-
-    Ok(web::Json(users.user_list.clone()))
-}
-
-#[delete("/api/delete_user/{name}")]
-async fn delete_user(name: web::Path<String>, users: web::Data<Users>) -> Result<impl Responder> {
-
-    Ok(web::Json(users.user_list.clone()))
-}
-
-#[get("/api/user/{name}")]
-async fn get_certain_user(name: web::Path<String>, users: web::Data<Users>) -> Result<impl Responder> {
-
-    Ok(web::Json(users.user_list.clone()))
-}
-
-
-#[get("/api/users")]
-async fn get_all_users(name: web::Path<String>, users: web::Data<Users>) -> Result<impl Responder> {
-
-    Ok(web::Json(users.user_list.clone()))
-}
+use actix_web::{web::Data, App, HttpServer};
+mod models;
+use crate::models::client::EClient;
+mod routes;
+use crate::routes::*;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let client = reqwest::Client::new();
-    let mut x = Data::new(Users{
-        user_list: vec![
-            User{
-                name:"Test".to_string(), 
-                password: "Password".to_string()
-        }]
-    });
+    // Debug mode
+    std::env::set_var("RUST_LOG", "debug");
+    env_logger::init();
+
+    // Start server
     HttpServer::new(move || {
         App::new()
-            .app_data(x.clone())
-            .service(get_all_users)
-            .service(get_certain_user)
-            .service(delete_user)
-            .service(add_user)
-            .service(update_user)
+            .app_data(Data::new(EClient::new("http://127.0.0.1:9200")))
+            .service(add_data_to_index) // #[post("/api/document")]
+            .service(update_data_on_index) // #[put("/api/document")]
+            .service(delete_data_on_index) // #[delete("/api/document")]
+            .service(search_in_index) // #[post("/api/search")]
+            .service(get_document_by_id) // #[get("/api/document/index/doc_id?fields_to_return=abc,def")]
+            .service(index_mapping_update) // #[put("/api/mappings")]
+            // .service(get_index)
+            .service(hardcoded_data_for_testing) // #[get("/api/hardcoded_data_add")]
+            .service(create_new_index) // #[post("/api/index")]
+            .service(get_all_index) // #[get("/api/index?index=index-name")]
     })
     .bind(("127.0.0.1", 8080))?
     .run()
