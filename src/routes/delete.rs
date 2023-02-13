@@ -1,11 +1,11 @@
-use serde_json::Value;
-use actix_web::{delete, web::{self, Data}, Responder, Result};
-use crate::EClient;
+use serde_json::{Value};
+use actix_web::{delete, web::{self, Data},  HttpResponse};
+use crate::{EClient, routes::required_check_string};
 
 
 /*
 
-JSON Data Format For Delete(Might change):
+JSON Data Format For Delete:
     {
         index: index_name
         document_id: id
@@ -13,24 +13,23 @@ JSON Data Format For Delete(Might change):
     From serde_json value, extract: 
     let x = var.get("str");
 */
+ 
+/// Deletes document in index
+/// 
+/// index: index_name
+/// document_id: Document ID
+#[delete("/api/document")]
+pub async fn delete_data_on_index(document_to_delete: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
 
-#[delete("/api/delete_data")]
-pub async fn delete_data_on_index(search_term: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> Result<impl Responder> {
+    let idx = match required_check_string(document_to_delete.get("index"), "index"){
+        Ok(x) => x,
+        Err(x) => return x
+    };
 
-    // Deletes the data inside the index
-
-    // Ok(web::Json(users.user_list.clone()))
-
-    // Index: index_name
-    // Document_id: id
-
-    // TODO: Check if either index or doc_id is empty, early return
-    let index = search_term.get("index").unwrap().to_string();
-    let doc_id = search_term.get("document_id").unwrap().to_string();
+    let document_id = match required_check_string(document_to_delete.get("document_id"), "document id"){
+        Ok(x) => x,
+        Err(x) => return x
+    };
     
-    let status = elasticsearch_client.delete_document(&index, &doc_id).await;
-
-    println!("STATUS: {:#?}", status);
-
-    Ok(web::Json(search_term.clone()))
+    elasticsearch_client.delete_document(&idx, &document_id).await
 }
