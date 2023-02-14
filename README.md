@@ -1,2 +1,5 @@
-# dps
- Domain Platform Service
+# DPS
+Domain Platform Service
+
+## Depedencies
+Elastic Search
