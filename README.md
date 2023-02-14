@@ -1,4 +1,4 @@
-# dps
+# DPS
 Domain Platform Service
 
 ## Depedencies
