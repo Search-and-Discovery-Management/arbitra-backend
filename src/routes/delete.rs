@@ -1,35 +1,38 @@
-use serde_json::{Value};
-use actix_web::{delete, web::{self, Data},  HttpResponse};
-use crate::{EClient, routes::required_check_string};
-
-
-/*
-
-JSON Data Format For Delete:
-    {
-        index: index_name
-        document_id: id
-    }
-    From serde_json value, extract: 
-    let x = var.get("str");
-*/
+use actix_web::{delete, web::{self, Data}, HttpResponse};
+use serde::{Deserialize};
+use crate::{EClient};
  
-/// Deletes document in index
-/// 
-/// index: index_name
-/// document_id: Document ID
-#[delete("/api/document")]
-pub async fn delete_data_on_index(document_to_delete: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
-
-    let idx = match required_check_string(document_to_delete.get("index"), "index"){
-        Ok(x) => x,
-        Err(x) => return x
-    };
-
-    let document_id = match required_check_string(document_to_delete.get("document_id"), "document id"){
-        Ok(x) => x,
-        Err(x) => return x
-    };
-    
-    elasticsearch_client.delete_document(&idx, &document_id).await
+#[derive(Deserialize)]
+pub struct DocumentDelete {
+    index: String,
+    document_id: String
 }
+
+/// Deletes document in index
+/// ```
+/// index: index_name
+/// document_id: document_id
+/// ```
+/// 
+/// Returns StatusCode:
+/// ```
+/// 200: Deleted successfully
+/// 404: Not Found
+/// ```
+/// 
+/// Returns body:
+/// ```
+/// {
+///     "message": "error_or_success"
+/// }
+/// ```
+#[delete("/api/document/{index}/{document_id}")]
+pub async fn delete_data_on_index(document_to_delete: web::Path<DocumentDelete>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
+    let dat = document_to_delete.into_inner();
+    elasticsearch_client.delete_document(&dat.index, &dat.document_id).await
+}
+
+// #[delete("/api/document")]
+// pub async fn delete_data_on_index(document_to_delete: web::Json<DocumentDelete>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
+//     elasticsearch_client.delete_document(&document_to_delete.index, &document_to_delete.document_id).await
+// }
