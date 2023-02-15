@@ -24,7 +24,7 @@ pub struct DocById{
 /// Used for Get: Document
 #[derive(Deserialize)]
 pub struct ReturnFields{
-    fields_to_return: Option<String>
+    return_fields: Option<String>
 }
 
 /// Used for Get: Index
@@ -122,7 +122,7 @@ pub async fn search_in_index(data: web::Json<DocumentSearch>, elasticsearch_clie
 #[get("/api/document/{index}/{document_id}")]
 pub async fn get_document_by_id(data: web::Path<DocById>, return_fields: web::Query<ReturnFields>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
     let dat = data.into_inner();
-    let fields_to_return = return_fields.into_inner().fields_to_return;
+    let fields_to_return = return_fields.into_inner().return_fields;
 
     elasticsearch_client.get_document(dat.index, dat.document_id, fields_to_return).await
 }
