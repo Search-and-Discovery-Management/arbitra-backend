@@ -58,6 +58,7 @@
     * **Code:** 409
 
 ## PUT /api/mappings
+----
     Updates the mappings of an index
 
 * **URL Params**
@@ -91,6 +92,7 @@
 # Document
 
 ## GET /api/document/:index/:document_id
+----
     Returns a single document in an index
 * **URL Params**
 
@@ -126,8 +128,9 @@
         ```
 
 ## POST /api/search
+----
     Searches an index for documents
-    
+
 * **URL Params**
 
     None
@@ -191,6 +194,7 @@
         ```
 
 ## POST /api/document
+----
     Creates a new document
 
 * **URL Params**
@@ -222,6 +226,7 @@
     * **Code:** 404
 
 ## PUT /api/document
+----
     Updates a document
 
 * **URL Params**
@@ -253,6 +258,7 @@
     * **Code:** 404
     
 ## DELETE /api/document/:index/:document_id
+----
     Deletes a document
 
 * **URL Params**

@@ -16,3 +16,6 @@ pub use self::delete::*;
 
 pub mod helpers;
 pub use self::helpers::*;
+
+pub mod welcome;
+pub use self::welcome::*;
