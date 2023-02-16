@@ -20,7 +20,7 @@ async fn main() -> std::io::Result<()> {
             .service(search_in_index) // #[post("/api/search")]
             .service(get_document_by_id) // #[get("/api/document/index/doc_id?fields_to_return=abc,def")]
             .service(index_mapping_update) // #[put("/api/mappings")]
-            // .service(get_index)
+            .service(welcome) // #[get("/api")]
             .service(hardcoded_data_for_testing) // #[get("/api/hardcoded_data_add")]
             .service(create_new_index) // #[post("/api/index")]
             .service(get_all_index) // #[get("/api/index?index=index-name")]

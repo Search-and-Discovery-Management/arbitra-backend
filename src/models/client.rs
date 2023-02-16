@@ -112,10 +112,10 @@ impl EClient {
             .await
             .unwrap();
     
-            if !exists.status_code().is_success() {
-                return HttpResponse::build(exists.status_code()).finish();
-            }
-            
+        if !exists.status_code().is_success() {
+            return HttpResponse::build(exists.status_code()).finish();
+        }
+  
         match dynamic_mode {
             Some(mode) => {
                 let set_dynamic = json!({
@@ -139,7 +139,8 @@ impl EClient {
         });
             
         self.update_index_mappings(index, set_dynamic).await;
-        return HttpResponse::build(resp.status_code()).finish();
+
+        HttpResponse::build(resp.status_code()).finish()
     }
 
     pub async fn update_index_mappings(&self, index: &str, mappings: Value) -> HttpResponse{
@@ -168,7 +169,7 @@ impl EClient {
         // println!("{:#?}", resp);
         // println!("{:#?}", resp.json::<Value>().await.unwrap());
 
-        return HttpResponse::build(status_code).finish();
+        HttpResponse::build(status_code).finish()
     }
 
     /// Updates existing document on an index
@@ -301,22 +302,18 @@ impl EClient {
 
         let fields_to_search: Option<Vec<String>> = search_on.map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
 
-        let from = match from{
-            Some(x) => x,
-            None => 0
-        }; 
+        let from = from.unwrap_or(0);
+        let count = count.unwrap_or(20);
 
-        let count = match count{
-            Some(x) => x,
-            None => 20
-        }; 
-
+        // Gives the current page with the amount of count
+        let from_page = from * count;
 
         let fields_to_return = match retrieve_field {
             Some(val) => val.split(',').into_iter().map(|x| x.trim().to_string()).collect(),
             None => vec!["*".to_string()],
         };
 
+        // Returns everything
         let mut body = json!({
             "_source": false,
             "query": {
@@ -326,7 +323,6 @@ impl EClient {
         });
 
         // Some(temp_variable) = existing_variable {function(temp_variable from existing_variable)}
-
         if let Some(search) = search_term {
             if let Some(search_field) = fields_to_search {
                 body = json!({
@@ -340,12 +336,24 @@ impl EClient {
                     },
                     "fields": fields_to_return
                 })
+            } else {
+                body = json!({
+                    "_source": false,
+                    "query": {
+                        "multi_match": {
+                            "query": search,
+                            "fields": "*",
+                            "fuzziness": "AUTO"     
+                        }
+                    },
+                    "fields": fields_to_return
+                });
             }
         };
 
         let resp = self.elastic
             .search(SearchParts::Index(&[index]))
-            .from(from)
+            .from(from_page)
             .size(count)
             .body(body)
             .send()
