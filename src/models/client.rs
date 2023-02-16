@@ -112,10 +112,10 @@ impl EClient {
             .await
             .unwrap();
     
-            if !exists.status_code().is_success() {
-                return HttpResponse::build(exists.status_code()).finish();
-            }
-            
+        if !exists.status_code().is_success() {
+            return HttpResponse::build(exists.status_code()).finish();
+        }
+  
         match dynamic_mode {
             Some(mode) => {
                 let set_dynamic = json!({

@@ -91,7 +91,11 @@ pub struct OptionalIndex{
 ///                 ]
 ///             }
 ///         }
-///     ]
+///     ],
+///     "match_type": "eq",
+///     "status": 200,
+///     "took": 12,
+///     "total_data": 3282
 /// }
 /// 
 /// Error Example:
@@ -143,21 +147,21 @@ pub async fn get_document_by_id(data: web::Path<DocById>, return_fields: web::Qu
 /// ```
 /// 
 /// Success Body Example:
-/// ```
-/// [
-///     {
-///         "docs.count": "0",
-///         "docs.deleted": "0",
-///         "health": "green",
-///         "index": "test_index",
-///         "pri": "3",
-///         "pri.store.size": "675b",
-///         "rep": "0",
-///         "status": "open",
-///         "store.size": "675b",
-///         "uuid": "qyX3NoR8SXOPkA0EoiDWRg"
-///     }
-/// ]
+// / ```
+// / [
+// /     {
+// /         "docs.count": "0",
+// /         "docs.deleted": "0",
+// /         "health": "green",
+// /         "index": "test_index",
+// /         "pri": "3",
+// /         "pri.store.size": "675b",
+// /         "rep": "0",
+// /         "status": "open",
+// /         "store.size": "675b",
+// /         "uuid": "qyX3NoR8SXOPkA0EoiDWRg"
+// /     }
+// / ]
 /// ```
 #[get("/api/index")]
 async fn get_all_index(index: web::Query<OptionalIndex>, elasticsearch_client: Data::<EClient>) -> HttpResponse {

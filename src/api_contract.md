@@ -22,18 +22,9 @@
         **Content:**
         ```
         [
-            {
-                "docs.count": "0",
-                "docs.deleted": "0",
-                "health": "green",
-                "index": "test_index",
-                "pri": "3",
-                "pri.store.size": "675b",
-                "rep": "0",
-                "status": "open",
-                "store.size": "675b",
-                "uuid": "qyX3NoR8SXOPkA0EoiDWRg"
-            }
+            {<index_object>},
+            {<index_object>},
+            {<index_object>}
         ]
         ```
 * **Error Response**
@@ -78,7 +69,7 @@
     ```
     {
         "index": string,
-        "mappings": value
+        "mappings": <json_object>
     }
     ```
 
@@ -89,9 +80,215 @@
 * **Success Response**
     * **Code:** 200
 
-` `
 * **Error Response**
 
     * **Code:** 400
+
+        OR
+
     * **Code:** 404
 
+# Document
+
+## GET /api/document/:index/:document_id
+    Returns a single document in an index
+* **URL Params**
+
+    ***Required:***
+
+    `index=[string]`
+    
+    `document_id=[string]`
+
+* **Data Params**
+
+    None
+
+* **Headers**
+
+    None
+
+* **Success Response**
+    * **Code:** 200
+
+        Content:
+        ```
+        {<data object>}
+        ```
+* **Error Response**
+    * **Code:** 404
+
+        Content:
+        ```
+        {
+            "message": "not found"
+        }
+        ```
+
+## POST /api/search
+    Searches an index for documents
+    
+* **URL Params**
+
+    None
+
+* **Data Params**
+
+    ```
+    {
+        "index": <index_name>,
+        "search_term": string, (Optional)
+        "search_in": <fields, comma separated>, (Optional)
+        "return_fields": <fields, comma separated>, (Optional)
+        "from": int, (Optional)
+        "count": int (Optional)
+    }
+    ```
+
+* **Headers**
+
+    None
+
+* **Success Response**
+    * **Code:** 200
+
+        Content:
+        ```
+        {
+            "data" = 
+                [
+                    {<document_object>},
+                    {<document_object>},
+                    {<document_object>}
+                ],
+            "match_type": string,
+            "status": <status_code>,
+            "took": int,
+            "total_data": int
+
+        }
+
+        ```
+* **Error Response**
+    * **Code:** 404
+
+        Content:
+        ```
+        {
+            "message": "not found"
+        }
+        ```
+
+        OR
+
+    * **Code:** 400
+
+        Content:
+        ```
+        {
+            "message": "bad request"
+        }
+        ```
+
+## POST /api/document
+    Creates a new document
+
+* **URL Params**
+
+    None
+
+* **Data Params**
+
+    ```
+    {
+        "index": <index_name>,
+        "dynamic_mode": <modes: "true", "false", "strict">, (Optional)
+        "data": <json_object>
+    }
+    ```
+* **Headers**
+
+    None
+
+* **Success Response**
+
+    * **Code:** 201
+
+* **Error Response**
+    * **Code:** 400
+
+        OR
+
+    * **Code:** 404
+
+## PUT /api/document
+    Updates a document
+
+* **URL Params**
+    
+    None
+
+* **Data Params**
+
+    ```
+    {
+        "index": <index_name>,
+        "dynamic_mode": <modes: "true", "false", "strict"> (Optional),
+        "data": <json_object>
+    }
+    ```
+* **Headers**
+
+    None
+
+* **Success Response**
+
+    * **Code:** 200
+
+* **Error Response**
+    * **Code:** 400
+
+        OR
+
+    * **Code:** 404
+    
+## DELETE /api/document/:index/:document_id
+    Deletes a document
+
+* **URL Params**
+    
+    ***Required:***
+
+    `index=[string]`
+
+    `document_id=[string]`
+
+* **Data Params**
+
+    None
+
+* **Headers**
+
+    None
+
+* **Success Response**
+
+    * **Code:** 200
+
+    Content:
+    ```
+    {
+        "message": "successfully updated"
+    }
+    ```
+
+* **Error Response**
+
+    * **Code:** 404
+
+    Content:
+    ```
+    {
+        "message": "not found"
+    }
+    ```
