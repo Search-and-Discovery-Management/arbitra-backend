@@ -8,6 +8,11 @@ pub struct DocumentDelete {
     document_id: String
 }
 
+#[derive(Deserialize)]
+pub struct IndexDelete {
+    index: String
+}
+
 /// Deletes document in index
 /// ```
 /// index: index_name
@@ -32,7 +37,9 @@ pub async fn delete_data_on_index(document_to_delete: web::Path<DocumentDelete>,
     elasticsearch_client.delete_document(&dat.index, &dat.document_id).await
 }
 
-// #[delete("/api/document")]
-// pub async fn delete_data_on_index(document_to_delete: web::Json<DocumentDelete>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
-//     elasticsearch_client.delete_document(&document_to_delete.index, &document_to_delete.document_id).await
-// }
+/// Deletes an index
+#[delete("/api/index/{index}")]
+pub async fn delete_index(index_to_delete: web::Path<IndexDelete>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
+    let dat = index_to_delete.into_inner();
+    elasticsearch_client.delete_index(&dat.index).await
+}

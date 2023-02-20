@@ -33,6 +33,12 @@ pub struct OptionalIndex{
     index: Option<String>
 }
 
+/// Used for Get: Mappings
+#[derive(Deserialize)]
+pub struct RequiredIndex{
+    index: String
+}
+
 /// Returns documents with either match_all or multi_match
 /// 
 /// match_all if either "search_term" or "search_in" field is not supplied
@@ -103,7 +109,6 @@ pub struct OptionalIndex{
 /// {
 ///     "message": "not found"
 /// }
-
 #[post("/api/search")]
 pub async fn search_in_index(data: web::Json<DocumentSearch>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
     elasticsearch_client.search_index(&data.index, data.search_term.clone(), data.search_in.clone(), data.return_fields.clone(), data.from, data.count).await
@@ -147,105 +152,29 @@ pub async fn get_document_by_id(data: web::Path<DocById>, return_fields: web::Qu
 /// ```
 /// 
 /// Success Body Example:
-// / ```
-// / [
-// /     {
-// /         "docs.count": "0",
-// /         "docs.deleted": "0",
-// /         "health": "green",
-// /         "index": "test_index",
-// /         "pri": "3",
-// /         "pri.store.size": "675b",
-// /         "rep": "0",
-// /         "status": "open",
-// /         "store.size": "675b",
-// /         "uuid": "qyX3NoR8SXOPkA0EoiDWRg"
-// /     }
-// / ]
+/// ```
+/// [
+///     {
+///         "docs.count": "0",
+///         "docs.deleted": "0",
+///         "health": "green",
+///         "index": "test_index",
+///         "pri": "3",
+///         "pri.store.size": "675b",
+///         "rep": "0",
+///         "status": "open",
+///         "store.size": "675b",
+///         "uuid": "qyX3NoR8SXOPkA0EoiDWRg"
+///     }
+/// ]
 /// ```
 #[get("/api/index")]
 async fn get_all_index(index: web::Query<OptionalIndex>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
     elasticsearch_client.get_index(index.into_inner().index).await
 }
 
-
-
-// pub struct SearchDocument{
-//     index: String
-//     from: Option<i64>,
-//     to: Option<i64>,
-
-// }
-
-// #[get("/api/search")]
-// pub async fn search_in_index_get(data: web::Json<SearchDocument>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
-
-
-
-//     let idx = match required_check_string(data.get("index"), "index"){
-//         Ok(x) => x,
-//         Err(x) => return x
-//     };
-
-//     let search_term = match optional_check_string(data.get("search_term")){
-//         Some(x) => Some(x),
-//         None => None
-//     };
-
-//     let fields_to_search = match optional_check_string(data.get("search_in")){
-//         Some(x) => Some(x),
-//         None => None
-//     };
-
-//     let fields_to_return = match optional_check_string(data.get("return_fields")){
-//         Some(x) => Some(x),
-//         None => None
-//     };
-
-
-//     let from = match optional_check_number(data.get("from")){
-//         Some(x) => x,
-//         None => 0
-//     }; 
-
-//     let count = match optional_check_number(data.get("count")){
-//         Some(x) => x,
-//         None => 20
-//     }; 
-
-//     elasticsearch_client.search_index(&idx, search_term, fields_to_search, fields_to_return, from, count).await
-// }
-
-// #[get("/api/document")]
-// pub async fn get_document_by_id(data: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
-
-//     let idx = match required_check_string(data.get("index"), "index"){
-//         Ok(x) => x,
-//         Err(x) => return x
-//     };
-
-//     let document_id = match required_check_string(data.get("document_id"), "document id"){
-//         Ok(x) => x,
-//         Err(x) => return x
-//     };
-
-//     let fields_to_return = match optional_check_string(data.get("return_fields")){
-//         Some(x) => Some(x),
-//         None => None
-//     };
-
-//     elasticsearch_client.get_document(idx, document_id, fields_to_return).await
-// }
-
-// /// Returns list of index if index is not provided, returns specified index if provided
-// #[get("/api/index")]
-// async fn get_all_index(index: web::Json<Value>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
-//     // if exists: return a list of index
-
-//     let idx = match optional_check_string(index.get("index")){
-//         Some(x) => Some(x),
-//         None => None
-//     };
-
-//     elasticsearch_client.get_index(idx).await
-// }
+/// Returns the mappings of an index
+#[get("/api/mappings/{index}")]
+async fn get_mapping(index: web::Path<RequiredIndex>, elasticsearch_client: Data::<EClient>) -> HttpResponse {
+    elasticsearch_client.get_index_mappings(index.into_inner().index).await
+}

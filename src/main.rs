@@ -21,10 +21,16 @@ async fn main() -> std::io::Result<()> {
             .service(get_document_by_id) // #[get("/api/document/index/doc_id?fields_to_return=abc,def")]
             .service(index_mapping_update) // #[put("/api/mappings")]
             .service(welcome) // #[get("/api")]
-            .service(hardcoded_data_for_testing) // #[get("/api/hardcoded_data_add")]
             .service(create_new_index) // #[post("/api/index")]
+            
+            // TODO: api_contract.md
             .service(get_all_index) // #[get("/api/index?index=index-name")]
-    })
+            .service(get_mapping) // #[get("/api/mappings/index_name")]
+            .service(delete_index) // #[delete("/api/index/index_name")]
+
+            // Temporary
+            .service(hardcoded_data_for_testing) // #[get("/api/hardcoded_data_add")]
+        })
     .bind(("127.0.0.1", 8080))?
     .run()
     .await
