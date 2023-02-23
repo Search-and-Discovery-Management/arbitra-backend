@@ -1,4 +1,7 @@
 pub mod client;
-pub use self::client::EClient;
+pub mod documents;
+pub mod index;
+pub mod errors;
 pub mod helpers;
-pub use self::helpers::*;
+pub use self::errors::*;
+pub use self::client::EClient;

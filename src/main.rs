@@ -22,11 +22,10 @@ async fn main() -> std::io::Result<()> {
             .service(index_mapping_update) // #[put("/api/mappings")]
             .service(welcome) // #[get("/api")]
             .service(create_new_index) // #[post("/api/index")]
-            
-            // TODO: api_contract.md
             .service(get_all_index) // #[get("/api/index?index=index-name")]
             .service(get_mapping) // #[get("/api/mappings/index_name")]
             .service(delete_index) // #[delete("/api/index/index_name")]
+            .service(get_search_in_index)
 
             // Temporary
             .service(hardcoded_data_for_testing) // #[get("/api/hardcoded_data_add")]
