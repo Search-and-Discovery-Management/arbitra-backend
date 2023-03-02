@@ -6,14 +6,13 @@ JSON Data Format For Creating new Index:
     }
 */
 
-use actix_web::{post, web::Data, HttpResponse};
+use actix_web::{web::Data, HttpResponse};
 use serde_json::Value;
 
 use crate::models::EClient;
 
 // Temporary hardcode to add test data
 #[allow(unused_must_use)]
-#[post("/api/hardcoded_data_add")]
 pub async fn hardcoded_data_for_testing(elasticsearch_client: Data::<EClient>) -> HttpResponse{
 
     const INDEX: &str = "airplanes_v3";

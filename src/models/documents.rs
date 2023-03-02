@@ -57,7 +57,7 @@ impl EClient {
     }
 
     /// Finds document in index
-    pub async fn search_index(&self, index: &str, search_term: Option<String>, search_on: Option<String>, retrieve_field: Option<String>, from: Option<i64>, count: Option<i64>) -> HttpResponse{
+    pub async fn search_index(&self, index: &str, search_term: Option<String>, search_in: Option<String>, retrieve_field: Option<String>, from: Option<i64>, count: Option<i64>) -> HttpResponse{
         match server_down_check(&self.elastic).await{
             Ok(()) => (),
             Err(x) => return x
@@ -68,7 +68,7 @@ impl EClient {
             Err(x) => return x
         };
 
-        let fields_to_search: Option<Vec<String>> = search_on.map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
+        let fields_to_search: Option<Vec<String>> = search_in.map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
 
         let from = from.unwrap_or(0);
         let count = count.unwrap_or(20);
@@ -191,8 +191,6 @@ impl EClient {
 
         HttpResponse::build(status_code).json(json_resp)
     }
-
-
     
     /// Updates existing document on an index
     pub async fn update_document(&self, index: &str, document_id: &str, data: Value) -> HttpResponse {//(StatusCode, Value){
@@ -226,8 +224,6 @@ impl EClient {
 
         HttpResponse::build(status_code).finish()
     }
-
-
 
     /// Deletes document on an index
     pub async fn delete_document(&self, index: &str, document_id: &str) -> HttpResponse{

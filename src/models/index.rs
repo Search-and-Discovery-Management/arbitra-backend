@@ -11,8 +11,6 @@ use super::{EClient, helpers::{server_down_check, index_exists_check}};
 
 impl EClient{
     /// Creates a new index
-    /// 
-    /// index: Index Name
     pub async fn create_index(&self, index: &str) -> HttpResponse{
 
         match server_down_check(&self.elastic).await{
@@ -60,6 +58,7 @@ impl EClient{
         HttpResponse::build(exists.status_code()).finish()
     }
 
+    // Updates the mappings of an index
     pub async fn update_index_mappings(&self, index: &str, mappings: Value) -> HttpResponse{
 
         match server_down_check(&self.elastic).await{
@@ -99,7 +98,6 @@ impl EClient{
     }
 
     /// Returns either a list of index if index is not supplied, or the specified index
-    /// index: index name
     pub async fn get_index(&self, index: Option<String>) -> HttpResponse{
 
         match server_down_check(&self.elastic).await{
@@ -206,14 +204,9 @@ impl EClient{
         let status_code = resp.status_code();
 
         if !status_code.is_success(){
-            let json_resp =  resp
-                .json::<Value>()
-                .await
-                .unwrap();
-
             return HttpResponse::build(status_code).json(
                     json!({
-                        "message": json_resp["error"]["reason"]
+                        "error": ErrorTypes::IndexNotFound(index.to_string()).to_string()
                     })
                 );
         }

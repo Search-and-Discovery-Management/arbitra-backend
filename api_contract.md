@@ -111,6 +111,14 @@
 * **Error Response**
     * **Code:** 409
 
+        **Content:**
+
+            ```
+            {    
+                "error": "Failed to create new index, index [name] already exists"
+            }
+            ```
+
 ## PUT /api/mappings
 ----
     Updates the mappings of an index
@@ -225,6 +233,16 @@
             "error": "Index [name] not found"
         }
         ```
+
+        OR
+
+        ```
+        {    
+            "error": "Document ID [document_id] not found"
+        }
+        ```
+
+    
 
 ## POST /api/search
 ----
@@ -482,5 +500,13 @@
         ```
         {
             "error": "Index [name] not found"
+        }
+        ```
+
+        OR
+
+        ```
+        {
+            "error": "Document ID [document_id] not found"
         }
         ```
