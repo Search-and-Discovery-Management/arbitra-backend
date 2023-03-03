@@ -7,4 +7,4 @@ Elastic Search
 ## Documentation
 - Look at [Github](https://github.com/Search-and-Discovery-Management/arbitra-backend/blob/main/api_contract.md)
 
-# :warning: MLI (Multi Level Indexing) Branch, ***Extremely experimental***
+# :warning: MLI (Multi Level Indexing) Branch, **Extremely experimental**
