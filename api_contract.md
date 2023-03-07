@@ -6,7 +6,9 @@
 
 * **URL Params**
 
-    ***Optional:*** `index=[string]`
+    ***Optional:*** 
+    
+    `index=[string]`
 
 * **Data Params**
 
@@ -29,7 +31,59 @@
         ```
 * **Error Response**
     * **Code:** 404
+        
+        **Content:**
+        
+        ```
+        {
+            "error": "Index [name] not found"
+        }
+        ```
 
+## GET /api/mappings/:index
+----
+    Gets the mappings of an index
+
+* **URL Params**
+
+    ***Required:*** 
+    
+    `index=[string]`
+
+* **Data Params**
+
+    None
+
+* **Headers**
+
+    None
+
+* **Success Response**
+    * **Code:** 200
+    
+        **Content:**
+        ```
+            {
+                "dynamic": "true"/"false"/"strict",
+                "properties": {
+                    <field_object>,
+                    <field_object>,
+                    <field_object>,
+                    <field_object>,
+                    ...
+                }
+                
+            }
+        ```
+* **Error Response**
+    * **Code:** 404
+        
+        **Content:**
+        ```
+        {    
+            "error": "Index [name] not found"
+        }
+        ```
 
 ## POST /api/index
 ----
@@ -56,6 +110,14 @@
 
 * **Error Response**
     * **Code:** 409
+
+        **Content:**
+
+            ```
+            {    
+                "error": "Failed to create new index, index [name] already exists"
+            }
+            ```
 
 ## PUT /api/mappings
 ----
@@ -85,9 +147,54 @@
 
     * **Code:** 400
 
+        **Content:**
+
+        ```
+        {    
+            "error": "Bad Data Request"
+        }
+        ```
         OR
 
     * **Code:** 404
+     
+        **Content:**
+        ```
+        {    
+            "error": "Index [name] not found"
+        }
+        ```
+
+## DELETE /api/index/:index
+----
+    Deletes an index
+
+* **URL Params**
+
+    **Required:**
+
+    `index=[string]`
+
+* **Data Params**
+
+    None
+
+* **Headers**
+
+    None
+
+* **Success Response**
+    * **Code:** 200
+
+* **Error Response**
+    * **Code:** 404
+
+        **Content:**
+        ```
+        {    
+            "error": "Index [name] not found"
+        }
+        ```
 
 # Document
 
@@ -113,19 +220,29 @@
 * **Success Response**
     * **Code:** 200
 
-        Content:
+        **Content:**
         ```
         {<data object>}
         ```
 * **Error Response**
     * **Code:** 404
 
-        Content:
+        **Content:**
         ```
-        {
-            "message": "not found"
+        {    
+            "error": "Index [name] not found"
         }
         ```
+
+        OR
+
+        ```
+        {    
+            "error": "Document ID [document_id] not found"
+        }
+        ```
+
+    
 
 ## POST /api/search
 ----
@@ -165,12 +282,9 @@
                     {<document_object>}
                 ],
             "match_type": string,
-            "status": <status_code>,
             "took": int,
             "total_data": int
-
         }
-
         ```
 * **Error Response**
     * **Code:** 404
@@ -178,7 +292,7 @@
         Content:
         ```
         {
-            "message": "not found"
+            "error": "Index [name] not found"
         }
         ```
 
@@ -189,7 +303,76 @@
         Content:
         ```
         {
-            "message": "bad request"
+            "error": "Bad data request"
+        }
+        ```
+
+## GET /api/search/:index
+----
+    The same as post, searches an index for documents
+
+* **URL Params**
+
+    ***Required:*** 
+
+    `index=[string]`
+
+    ***Optional:***
+
+    `search_term=[string]`
+
+    `search_in=[fields, comma separated]`
+
+    `search_fields=[fields, comma separated]`
+
+    `return_fields=[fields, comma separated]`
+
+    `from=[int]`
+
+    `count=[int]`
+* **Data Params**
+
+    None
+
+* **Headers**
+
+    None
+
+* **Success Response**
+    * **Code:** 200
+
+        Content:
+        ```
+        {
+            "data" = 
+                [
+                    {<document_object>},
+                    {<document_object>},
+                    {<document_object>}
+                ],
+            "match_type": string,
+            "took": int,
+            "total_data": int
+        }
+        ```
+* **Error Response**
+    * **Code:** 404
+
+        Content:
+        ```
+        {
+            "error": "Index [name] not found"
+        }
+        ```
+
+        OR
+
+    * **Code:** 400
+
+        Content:
+        ```
+        {
+            "error": "Bad data request"
         }
         ```
 
@@ -221,9 +404,23 @@
 * **Error Response**
     * **Code:** 400
 
+        Content:
+        ```
+        {
+            "error": "Bad data request"
+        }
+        ```
+
         OR
 
     * **Code:** 404
+
+        Content:
+        ```
+        {
+            "error": "Index [name] not found"
+        }
+        ```
 
 ## PUT /api/document
 ----
@@ -253,9 +450,23 @@
 * **Error Response**
     * **Code:** 400
 
+        Content:
+        ```
+        {
+            "error": "Bad data request"
+        }
+        ```
+
         OR
 
     * **Code:** 404
+
+        Content:
+        ```
+        {
+            "error": "Index [name] not found"
+        }
+        ```
     
 ## DELETE /api/document/:index/:document_id
 ----
@@ -281,20 +492,21 @@
 
     * **Code:** 200
 
-    Content:
-    ```
-    {
-        "message": "successfully updated"
-    }
-    ```
-
 * **Error Response**
 
     * **Code:** 404
 
-    Content:
-    ```
-    {
-        "message": "not found"
-    }
-    ```
+        Content:
+        ```
+        {
+            "error": "Index [name] not found"
+        }
+        ```
+
+        OR
+
+        ```
+        {
+            "error": "Document ID [document_id] not found"
+        }
+        ```

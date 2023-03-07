@@ -1,21 +1,20 @@
-// create.rs
-pub mod create;
-pub use self::create::*;
-
-// read.rs
-pub mod read;
-pub use self::read::*;
-
-// update.rs
-pub mod update;
-pub use self::update::*;
-
-// delete.rs
-pub mod delete;
-pub use self::delete::*;
-
 pub mod helpers;
 pub use self::helpers::*;
 
 pub mod welcome;
 pub use self::welcome::*;
+
+pub mod index;
+pub use self::index::*;
+
+pub mod document;
+pub use self::document::*;
+
+pub mod testing;
+pub use self::testing::*;
+
+pub mod document_struct;
+pub use self::document_struct::*;
+
+pub mod index_struct;
+pub use self::index_struct::*;
