@@ -1,0 +1,64 @@
+use elasticsearch::{IndexParts, UpdateParts, SearchParts, GetSourceParts, DeleteParts, http::response::Response, Error};
+use serde_json::{Value};
+
+use super::EClientTesting;
+
+impl EClientTesting {
+    /// Inserts a new document into index
+    pub async fn insert_document(&self, index: &str, data: Value) -> Result<Response, Error>{
+        self.elastic
+            .index(IndexParts::Index(index))
+            .body(data)
+            .send()
+            .await
+    }
+
+    /// Finds document in index
+    pub async fn search_index(&self, index: &str, body: Value, from: Option<i64>, count: Option<i64>) -> Result<Response, Error>{
+
+        let from = from.unwrap_or(0);
+        let count = count.unwrap_or(20);
+
+        self.elastic
+            .search(SearchParts::Index(&[index]))
+            .from(from)
+            .size(count)
+            .body(body)
+            .send()
+            .await
+    }
+
+    /// Returns a single document
+    pub async fn get_document(&self, index: String, doc_id: String, retrieve_fields: Option<String>) -> Result<Response, Error>{
+        
+        let fields_to_return = retrieve_fields.unwrap_or("*".to_string());
+        // let resp = client.elastic
+        //     .get(GetParts::IndexId(index, document_id))
+        //     .send()
+        //     .await
+        //     .unwrap();
+
+        self.elastic
+            .get_source(GetSourceParts::IndexId(&index, &doc_id))
+            ._source_includes(&[&fields_to_return])
+            .send()
+            .await
+    }
+    
+    /// Updates existing document on an index
+    pub async fn update_document(&self, index: &str, document_id: &str, data: Value) -> Result<Response, Error> {//(StatusCode, Value){
+        self.elastic
+            .update(UpdateParts::IndexId(index, document_id))
+            .body(data)
+            .send()
+            .await
+    }
+
+    /// Deletes document on an index
+    pub async fn delete_document(&self, index: &str, document_id: &str) -> Result<Response, Error>{
+        self.elastic
+            .delete(DeleteParts::IndexId(index, document_id))
+            .send()
+            .await
+    }
+}

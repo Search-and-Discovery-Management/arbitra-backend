@@ -3,18 +3,13 @@ use elasticsearch::{IndexParts, UpdateParts, SearchParts, GetSourceParts, Delete
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
-use super::{EClient, ErrorTypes, helpers::{server_down_check, index_exists_check}};
+use super::{EClient, ErrorTypes, helpers::{index_exists_check_or_down}};
 
 impl EClient {
     /// Inserts a new document into index
     pub async fn insert_document(&self, index: &str, data: Value, dynamic_mode: Option<String>) -> HttpResponse{
 
-        match server_down_check(&self.elastic).await{
-            Ok(()) => (),
-            Err(x) => return x
-        };
-
-        match index_exists_check(&self.elastic, index).await{
+        match index_exists_check_or_down(&self.elastic, index).await{
             Ok(()) => (),
             Err(x) => return x
         };
@@ -58,12 +53,8 @@ impl EClient {
 
     /// Finds document in index
     pub async fn search_index(&self, index: &str, search_term: Option<String>, search_in: Option<String>, retrieve_field: Option<String>, from: Option<i64>, count: Option<i64>) -> HttpResponse{
-        match server_down_check(&self.elastic).await{
-            Ok(()) => (),
-            Err(x) => return x
-        };
 
-        match index_exists_check(&self.elastic, index).await{
+        match index_exists_check_or_down(&self.elastic, index).await{
             Ok(()) => (),
             Err(x) => return x
         };
@@ -154,12 +145,8 @@ impl EClient {
 
     /// Returns a single document
     pub async fn get_document(&self, index: String, doc_id: String, retrieve_fields: Option<String>) -> HttpResponse{
-        match server_down_check(&self.elastic).await{
-            Ok(()) => (),
-            Err(x) => return x
-        };
 
-        match index_exists_check(&self.elastic, &index).await{
+        match index_exists_check_or_down(&self.elastic, &index).await{
             Ok(()) => (),
             Err(x) => return x
         };
@@ -194,12 +181,8 @@ impl EClient {
     
     /// Updates existing document on an index
     pub async fn update_document(&self, index: &str, document_id: &str, data: Value) -> HttpResponse {//(StatusCode, Value){
-        match server_down_check(&self.elastic).await{
-            Ok(()) => (),
-            Err(x) => return x
-        };
 
-        match index_exists_check(&self.elastic, index).await{
+        match index_exists_check_or_down(&self.elastic, index).await{
             Ok(()) => (),
             Err(x) => return x
         };
@@ -227,12 +210,8 @@ impl EClient {
 
     /// Deletes document on an index
     pub async fn delete_document(&self, index: &str, document_id: &str) -> HttpResponse{
-        match server_down_check(&self.elastic).await{
-            Ok(()) => (),
-            Err(x) => return x
-        };
 
-        match index_exists_check(&self.elastic, index).await{
+        match index_exists_check_or_down(&self.elastic, index).await{
             Ok(()) => (),
             Err(x) => return x
         };

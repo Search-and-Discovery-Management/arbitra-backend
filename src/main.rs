@@ -1,9 +1,17 @@
+use actions::EClientTesting;
 use actix_web::web;
 use actix_web::{web::Data, App, HttpServer};
-mod models;
-use crate::models::client::EClient;
-mod routes;
-use crate::routes::*;
+use handlers::application::{initialize_new_app_id, get_application_list};
+mod models_backup;
+
+use crate::models_backup::client::EClient;
+mod routes_backup;
+use crate::routes_backup::*;
+
+mod actions;
+mod handlers;
+
+pub const APPLICATION_LIST_NAME: &str = "application_list";
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -37,10 +45,14 @@ async fn main() -> std::io::Result<()> {
 
                     // Temporary
                     .service(
-                        web::scope("/test")
-                            .route("add_data", web::get().to(hardcoded_data_for_testing))
+                        web::scope("/mli_test")
+                            .app_data(Data::new(EClientTesting::new("http://127.0.0.1:9200")))
+                            .route("/app", web::post().to(initialize_new_app_id))
+                            .route("/app", web::get().to(get_application_list)
+                        // web::scope("/test")
+                            // .route("add_data", web::get().to(hardcoded_data_for_testing))
                     )
-            )
+            ))
         })
     .bind(("127.0.0.1", 8080))?
     .run()

@@ -9,7 +9,7 @@ JSON Data Format For Creating new Index:
 use actix_web::{web::Data, HttpResponse};
 use serde_json::Value;
 
-use crate::models::EClient;
+use crate::models_backup::EClient;
 
 // Temporary hardcode to add test data
 #[allow(unused_must_use)]

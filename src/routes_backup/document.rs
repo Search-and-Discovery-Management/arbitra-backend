@@ -1,6 +1,6 @@
 use actix_web::{web::{self, Data}, HttpResponse};
 use serde_json::json;
-use crate::{EClient, routes::{str_or_default_if_exists_in_vec, document_struct::*}};
+use crate::{EClient, routes_backup::{str_or_default_if_exists_in_vec, document_struct::*}};
 
 /// Inserts a new document, with 3 dynamic modes: true, false, strict
 pub async fn create_document(data: web::Json<DocumentCreate>, elasticsearch_client: Data::<EClient>) -> HttpResponse {  

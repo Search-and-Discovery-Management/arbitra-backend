@@ -3,7 +3,7 @@ use elasticsearch::{indices::IndicesExistsParts, Elasticsearch};
 use reqwest::StatusCode;
 use serde_json::json;
 
-use crate::models::ErrorTypes;
+use crate::models_backup::ErrorTypes;
 
 pub async fn server_down_check(server: &Elasticsearch) -> Result<(), HttpResponse> {
     let server = server
@@ -20,7 +20,7 @@ pub async fn server_down_check(server: &Elasticsearch) -> Result<(), HttpRespons
     };
 }
 
-pub async fn index_exists_check(server: &Elasticsearch, index: &str) -> Result<(), HttpResponse> {
+pub async fn index_exists_check_or_down(server: &Elasticsearch, index: &str) -> Result<(), HttpResponse> {
     let index_check = server
         .indices()
         .exists(IndicesExistsParts::Index(&[index]))
@@ -33,6 +33,7 @@ pub async fn index_exists_check(server: &Elasticsearch, index: &str) -> Result<(
     if !status_code.is_success(){
         let error =  match status_code{
             StatusCode::NOT_FOUND => ErrorTypes::IndexNotFound(index.to_string()).to_string(),
+            StatusCode::INTERNAL_SERVER_ERROR => ErrorTypes::ServerDown.to_string(),
             _ => ErrorTypes::Unknown.to_string()
         };
 

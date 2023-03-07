@@ -3,9 +3,9 @@ use elasticsearch::{indices::{IndicesExistsParts, IndicesCreateParts, IndicesPut
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 
-use crate::models::ErrorTypes;
+use crate::models_backup::ErrorTypes;
 
-use super::{EClient, helpers::{server_down_check, index_exists_check}};
+use super::{EClient, helpers::{server_down_check, index_exists_check_or_down}};
 
 
 
@@ -61,12 +61,7 @@ impl EClient{
     // Updates the mappings of an index
     pub async fn update_index_mappings(&self, index: &str, mappings: Value) -> HttpResponse{
 
-        match server_down_check(&self.elastic).await{
-            Ok(()) => (),
-            Err(x) => return x
-        };
-
-        match index_exists_check(&self.elastic, index).await{
+        match index_exists_check_or_down(&self.elastic, index).await{
             Ok(()) => (),
             Err(x) => return x
         };
@@ -91,22 +86,14 @@ impl EClient{
             }));
         }
 
-        // println!("{:#?}", resp);
-        // println!("{:#?}", resp.json::<Value>().await.unwrap());
-
         HttpResponse::build(status_code).finish()
     }
 
     /// Returns either a list of index if index is not supplied, or the specified index
     pub async fn get_index(&self, index: Option<String>) -> HttpResponse{
 
-        match server_down_check(&self.elastic).await{
-            Ok(()) => (),
-            Err(x) => return x
-        };
-
         if index.is_some() {
-            match index_exists_check(&self.elastic, &index.clone().unwrap()).await{
+            match index_exists_check_or_down(&self.elastic, &index.clone().unwrap()).await{
                 Ok(()) => (),
                 Err(x) => return x
             };
@@ -140,12 +127,8 @@ impl EClient{
 
     /// Returns the mappings of an index
     pub async fn get_index_mappings(&self, index: String) -> HttpResponse{
-        match server_down_check(&self.elastic).await{
-            Ok(()) => (),
-            Err(x) => return x
-        };
 
-        match index_exists_check(&self.elastic, &index).await{
+        match index_exists_check_or_down(&self.elastic, &index).await{
             Ok(()) => (),
             Err(x) => return x
         };
@@ -182,12 +165,8 @@ impl EClient{
     
     /// Deletes an index
     pub async fn delete_index(&self, index: &str) -> HttpResponse{
-        match server_down_check(&self.elastic).await{
-            Ok(()) => (),
-            Err(x) => return x
-        };
 
-        match index_exists_check(&self.elastic, index).await{
+        match index_exists_check_or_down(&self.elastic, index).await{
             Ok(()) => (),
             Err(x) => return x
         };

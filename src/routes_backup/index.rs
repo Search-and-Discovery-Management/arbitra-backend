@@ -1,5 +1,5 @@
 use actix_web::{web::{self, Data}, HttpResponse};
-use crate::{EClient, routes::{index_struct::*}};
+use crate::{EClient, routes_backup::{index_struct::*}};
 
 
 /// Creates a new dynamic index
