@@ -1,9 +1,11 @@
 use actix_web::web;
 use actix_web::{web::Data, App, HttpServer};
+use middlewares::cors::cors;
 mod models;
 use crate::models::client::EClient;
 mod routes;
 use crate::routes::*;
+mod middlewares;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -14,6 +16,7 @@ async fn main() -> std::io::Result<()> {
     // Start server
     HttpServer::new(move || {
         App::new()
+            .wrap(cors())
             .service(
                 web::scope("/api")
                     .app_data(Data::new(EClient::new("http://127.0.0.1:9200")))
