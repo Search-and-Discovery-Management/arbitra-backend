@@ -1,7 +1,7 @@
 use actions::EClientTesting;
 use actix_web::web;
 use actix_web::{web::Data, App, HttpServer};
-use handlers::application::{initialize_new_app_id, get_application_list};
+use handlers::application::{initialize_new_app_id, get_application_list, get_application};
 mod models_backup;
 
 use crate::models_backup::client::EClient;
@@ -48,10 +48,8 @@ async fn main() -> std::io::Result<()> {
                         web::scope("/mli_test")
                             .app_data(Data::new(EClientTesting::new("http://127.0.0.1:9200")))
                             .route("/app", web::post().to(initialize_new_app_id))
-                            .route("/app", web::get().to(get_application_list)
-                        // web::scope("/test")
-                            // .route("add_data", web::get().to(hardcoded_data_for_testing))
-                    )
+                            .route("/apps", web::get().to(get_application_list))
+                            .route("/app/{app_id}", web::get().to(get_application))
             ))
         })
     .bind(("127.0.0.1", 8080))?

@@ -1,10 +1,13 @@
 // Contains the functions shared among handler functions
 
+use actix_web::web::Redirect;
 use elasticsearch::GetParts;
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 
 use crate::{actions::client::EClientTesting};
+
+use super::errors::ErrorTypes;
 
 /// Checks if the elastic server is up
 pub async fn is_server_up(client: &EClientTesting) -> bool {
@@ -112,35 +115,22 @@ pub async fn create_or_exists_index(index: &str, shards: Option<i64>, replicas: 
 }
 
 // TODO: Convert into a lib function that uses actions
-pub async fn get_document(index: &str, document_id: &str, retrieve_fields: Option<String>, client: &EClientTesting) -> StatusCode{
-    // let fields_to_return = match retrieve_fields {
-    //     Some(val) => val,
-    //     None => "*".to_string(),
-    // };
-    // let fields_to_return = retrieve_fields.unwrap_or("*".to_string());
-
-    // let resp = client.elastic
-    //     .get_source(GetSourceParts::IndexId(&index, &doc_id))
-    //     ._source_includes(&[&fields_to_return])
-    //     .send()
-    //     .await
-    //     .unwrap();
+pub async fn get_document(index: &str, document_id: &str, retrieve_fields: Option<String>, client: &EClientTesting) -> Result<(StatusCode, Value), (StatusCode, ErrorTypes)>{
     let resp = client.get_document(index.to_string(), document_id.to_string(), retrieve_fields).await.unwrap();
 
     let status_code = resp.status_code();
     
     if !status_code.is_success() {
         let error = match status_code{
-            StatusCode::NOT_FOUND => ErrorTypes::DocumentNotFound(document_id.to_string()).to_string(),
-            _ => ErrorTypes::Unknown.to_string()
+            StatusCode::NOT_FOUND => ErrorTypes::DocumentNotFound(document_id.to_string()),
+            _ => ErrorTypes::Unknown
         };
-        return HttpResponse::build(status_code).json(json!({"error": error}));
+        return Err((status_code, error));
     }
 
     let json_resp = resp.json::<Value>().await.unwrap();
 
-
-    HttpResponse::build(status_code).json(json_resp)
+    Ok((status_code, json_resp))
 }
 
 pub fn search_body_builder(search_term: Option<String>, search_in: Option<String>, retrieve_field: Option<String>, include_source: bool, fuzziness: Option<String>) -> Value{

@@ -4,7 +4,9 @@ use serde_json::{json, Value};
 
 use crate::{actions::client::EClientTesting, handlers::errors::ErrorTypes, APPLICATION_LIST_NAME};
 
-use super::libs::{create_or_exists_index, is_server_up, insert_new_app_name, search_body_builder};
+use super::{libs::{create_or_exists_index, is_server_up, insert_new_app_name, search_body_builder, get_document}};
+
+// TODO: Replace every input with serde struct
 
 /// Consists of
 /// An index with a list of application ids (formerly index)
@@ -56,7 +58,7 @@ use super::libs::{create_or_exists_index, is_server_up, insert_new_app_name, sea
     }
 */
 
-// Since there must always be an application list, this will always create one
+// Since there must always be an application list, this will always create one if it doesnt exist
 pub async fn initialize_new_app_id(data: web::Json<Value>, client: Data::<EClientTesting>) -> HttpResponse{
     // If not exist, create a new index called Application_List containing the list of application ids
     // Generate unique id for each application ids
@@ -64,7 +66,6 @@ pub async fn initialize_new_app_id(data: web::Json<Value>, client: Data::<EClien
     // Create a new index with that particular ID
     // Return status 201 if created, 409 if already exists
 
-    // TODO: Finish json extraction with appropriate errors
     let dat = data.into_inner();
 
     let app_name = dat.get("app_name").unwrap().as_str().unwrap();
@@ -75,11 +76,6 @@ pub async fn initialize_new_app_id(data: web::Json<Value>, client: Data::<EClien
 
     // Checks if the index "application_list" already exist, if not, create
     let _ = create_or_exists_index(APPLICATION_LIST_NAME, None, None, &client).await;
-
-    // let uuid = Uuid::new_v4().to_string();
-
-    // Inserts as document and new index
-    // let app_id_status = create_or_exists_index(&uuid, None, None, &client).await;
 
     let app_id_status = insert_new_app_name(app_name, APPLICATION_LIST_NAME, &client).await;
 
@@ -96,7 +92,7 @@ pub async fn initialize_new_app_id(data: web::Json<Value>, client: Data::<EClien
     }
 }
 
-pub async fn get_application_list(client: Data::<EClientTesting>) -> HttpResponse{
+pub async fn get_application_list(data: web::Json<Value>, client: Data::<EClientTesting>) -> HttpResponse{
     // If not exist, return an array of nothing
     // If there is, return a json list of the application id, its names, and the number of index it has
     // Probably use the search function in documents
@@ -112,41 +108,65 @@ pub async fn get_application_list(client: Data::<EClientTesting>) -> HttpRespons
     //     "fields": ["name", "indexes"]
     // });
 
-    // TODO: Proper JSON Input (Currently hardcoded for search term)
-    let body = search_body_builder(None, None, Some("_id,name,indexes".to_string()), false, Some("AUTO".to_string()));
+    // TODO: Use serde json deserialize 
+    let dat = data.into_inner();
+    let app_name = dat.get("app_name").unwrap().as_str().unwrap().to_string();
+    let body = search_body_builder(Some(app_name), None, Some("_id,name,indexes".to_string()), false, Some("AUTO".to_string()));
     let json_resp = client.search_index(APPLICATION_LIST_NAME, body, None, None).await.unwrap().json::<Value>().await.unwrap();
     HttpResponse::Ok().json(json!({
         "took": json_resp["took"],
         "data": json_resp["hits"]["hits"],
         "total_data": json_resp["hits"]["total"]["value"],
     }))
-    // return HttpResponse::Ok().json(json!({
-    //     "message": client.search_index(APPLICATION_LIST_NAME, body, None, None).await.unwrap().json::<Value>().await.unwrap()
-    //     }
-    // ));
 }
 
-pub async fn get_application(client: Data::<EClientTesting>) -> HttpResponse{
+pub async fn get_application(data: web::Path<String>, client: Data::<EClientTesting>) -> HttpResponse{
+    // Search app id with /:app_id
     // If not exist, return 404
-    // If there is, return application id, name, indexes, and number of index
+    // If there is, return application id, name, and indexes
     // This uses documents get
-    
-    todo!()
+
+    let dat = data.into_inner();
+    let resp = get_document(APPLICATION_LIST_NAME, &dat, Some("_id,name,indexes".to_string()), &client).await;
+
+    match resp {
+        Ok((code, value)) => return HttpResponse::build(code).json(value),
+        Err((code, error)) => return HttpResponse::build(code).json(json!({"error": error.to_string()})) 
+    };
 }
 
-pub async fn update_application(client: Data::<EClientTesting>) -> HttpResponse{
+// 404 or 200
+// Convert to proper input 
+// This simply updates the name, without adding or deleting
+pub async fn update_application(data: web::Json<Value>, client: Data::<EClientTesting>) -> HttpResponse{
     // Updates the name of the application
     // This uses document update
 
-    todo!()
+    let dat = data.into_inner();
+
+    let app_id = dat.get("app_id").unwrap().as_str().unwrap();
+    let name = dat.get("name").unwrap().as_str().unwrap();
+
+    let body = json!({
+        "name": name
+    });
+
+    let resp = client.update_document(APPLICATION_LIST_NAME, app_id, body).await.unwrap();
+
+    HttpResponse::build(resp.status_code()).finish()
 }
 
-pub async fn delete_application(client: Data::<EClientTesting>) -> HttpResponse{
+// TODO: Actually delete the indexes with app_id of app being deleted
+pub async fn delete_application(data: web::Path<String>, client: Data::<EClientTesting>) -> HttpResponse{
     // Deletes application inside application_list
     // If not exist, return 404 
     // If there is, 
     // 1. Delete all the index shards with application id before it -> Index Delete
     // 2. Delete application inside application list -> Document Delete
-    
-    todo!()
+
+    let app_id = data.into_inner();
+
+    let resp = client.delete_document(APPLICATION_LIST_NAME, &app_id).await.unwrap();
+
+    HttpResponse::build(resp.status_code()).finish()
 }
