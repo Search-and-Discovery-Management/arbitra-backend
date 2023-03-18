@@ -15,5 +15,6 @@ pub enum ErrorTypes {
     #[error("Server currently unavailable")]
     ServerDown,
     #[error("Unknown error occured")]
-    Unknown
+    Unknown,
+
 }

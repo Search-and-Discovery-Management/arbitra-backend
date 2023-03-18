@@ -1,11 +1,11 @@
-use elasticsearch::{IndexParts, UpdateParts, SearchParts, GetSourceParts, DeleteParts, http::response::Response, Error};
+use elasticsearch::{IndexParts, UpdateParts, SearchParts, GetSourceParts, DeleteParts, http::response::Response, Error, BulkOperations};
 use serde_json::{Value};
 
 use super::EClientTesting;
 
 impl EClientTesting {
     /// Inserts a new document into index
-    pub async fn insert_document(&self, index: &str, data: Value) -> Result<Response, Error>{
+    pub async fn insert_document(&self, index: &str, data: &Value) -> Result<Response, Error>{
         self.elastic
             .index(IndexParts::Index(index))
             .body(data)
@@ -13,8 +13,18 @@ impl EClientTesting {
             .await
     }
 
+    /// Document bulk operation (create, update, delete)
+    /// Unused, Untested
+    pub async fn bulk_documents(&self, index: &str, data: BulkOperations) -> Result<Response, Error>{
+        self.elastic
+            .bulk(elasticsearch::BulkParts::Index(index))
+            .body(vec![data])
+            .send()
+            .await
+    }
+
     /// Finds document in index
-    pub async fn search_index(&self, index: &str, body: Value, from: Option<i64>, count: Option<i64>) -> Result<Response, Error>{
+    pub async fn search_index(&self, index: &str, body: &Value, from: Option<i64>, count: Option<i64>) -> Result<Response, Error>{
 
         let from = from.unwrap_or(0);
         let count = count.unwrap_or(20);
@@ -29,7 +39,7 @@ impl EClientTesting {
     }
 
     /// Returns a single document
-    pub async fn get_document(&self, index: String, doc_id: String, retrieve_fields: Option<String>) -> Result<Response, Error>{
+    pub async fn get_document(&self, index: &str, doc_id: &str, retrieve_fields: Option<String>) -> Result<Response, Error>{
         
         let fields_to_return = retrieve_fields.unwrap_or("*".to_string());
         // let resp = client.elastic
@@ -46,7 +56,7 @@ impl EClientTesting {
     }
     
     /// Updates existing document on an index
-    pub async fn update_document(&self, index: &str, document_id: &str, data: Value) -> Result<Response, Error> {//(StatusCode, Value){
+    pub async fn update_document(&self, index: &str, document_id: &str, data: &Value) -> Result<Response, Error> {//(StatusCode, Value){
         self.elastic
             .update(UpdateParts::IndexId(index, document_id))
             .body(data)

@@ -7,7 +7,7 @@ use super::{EClientTesting};
 
 impl EClientTesting{
     /// Creates a new index
-    pub async fn create_index(&self, body: Value, index: &str) -> Result<Response, Error>{
+    pub async fn create_index(&self, index: &str, body: &Value) -> Result<Response, Error>{
         self.elastic
             .indices()
             .create(IndicesCreateParts::Index(index))
@@ -17,7 +17,7 @@ impl EClientTesting{
     }
 
     // Updates the mappings of an index
-    pub async fn update_index_mappings(&self, index: &str, mappings: Value) -> Result<Response, Error>{
+    pub async fn update_index_mappings(&self, index: &str, mappings: &Value) -> Result<Response, Error>{
         self.elastic
             .indices()
             .put_mapping(IndicesPutMappingParts::Index(&[index]))
