@@ -46,14 +46,12 @@ pub async fn initialize_new_app_id(data: web::Json<NewApp>, client: Data::<EClie
     // Create a new index with that particular ID
     // Return status 201 if created, 409 if already exists
 
-    if !is_server_up(&client).await {
-        return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()}))
-    }
+    if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
 
     // Checks if the index "application_list" already exist, if not, create
     let _ = create_or_exists_index(None, APPLICATION_LIST_NAME, None, None, &client).await;
 
-    let app_id_status = insert_new_app_name(&data.app_name, APPLICATION_LIST_NAME, &client).await;
+    let app_id_status = insert_new_app_name(&data.app_name, &client).await;
 
     match app_id_status {
         StatusCode::CREATED => {
@@ -69,6 +67,8 @@ pub async fn initialize_new_app_id(data: web::Json<NewApp>, client: Data::<EClie
 }
 
 pub async fn get_application_list(data: web::Path<SearchApp>, client: Data::<EClientTesting>) -> HttpResponse{
+
+    if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
     // If not exist, return an array of nothing
     // If there is, return a json list of the application id, its names, and the number of index it has
     // Probably use the search function in documents
@@ -84,7 +84,7 @@ pub async fn get_application_list(data: web::Path<SearchApp>, client: Data::<ECl
     //     "fields": ["name", "indexes"]
     // });
 
-    let body = search_body_builder(data.app_name.clone(), None, Some("_id,name,indexes".to_string()), false, Some("AUTO".to_string()));
+    let body = search_body_builder(data.app_name.clone(), None, Some("_id,name,indexes".to_string()), Some("AUTO".to_string()));
     let json_resp = client.search_index(APPLICATION_LIST_NAME, &body, None, None).await.unwrap().json::<Value>().await.unwrap();
     HttpResponse::Ok().json(json!({
         "took": json_resp["took"],
@@ -99,6 +99,8 @@ pub async fn get_application(data: web::Path<GetApp>, client: Data::<EClientTest
     // If not exist, return 404
     // If there is, return application id, name, and indexes
     // This uses documents get
+
+    if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
 
     // let dat = data.into_inner();
     let resp = get_document(APPLICATION_LIST_NAME, &data.app_id, Some("_id,name,indexes".to_string()), &client).await;
@@ -117,8 +119,12 @@ pub async fn update_application(data: web::Json<UpdateApp>, client: Data::<EClie
     // Updates the name of the application
     // This uses document update
 
+    if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
+
     let body = json!({
-        "name": &data.app_name
+        "doc": {
+            "name": &data.app_name
+        }
     });
 
     let resp = client.update_document(APPLICATION_LIST_NAME, &data.app_id, &body).await.unwrap();
@@ -135,8 +141,10 @@ pub async fn delete_application(data: web::Path<DeleteApp>, client: Data::<EClie
     // 2. Delete application inside application list -> Document Delete
 
     // let app_id = data.into_inner();
+    if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
 
     let resp = client.delete_document(APPLICATION_LIST_NAME, &data.app_id).await.unwrap();
+    
     let _ = client.delete_index(&index_name_builder(&data.app_id, "*"));
 
     HttpResponse::build(resp.status_code()).finish()

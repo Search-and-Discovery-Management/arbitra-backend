@@ -2,7 +2,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ErrorTypes {
-    #[error("Application Name [{0}] not found")]
+    #[error("Application ID [{0}] not found")]
     ApplicationNotFound(String),
     #[error("Index [{0}] not found")]
     IndexNotFound(String),

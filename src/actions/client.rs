@@ -18,7 +18,6 @@ impl EClientTesting {
     pub fn new(url: &str) -> Self {
         
         let conn_url = Url::parse(url).unwrap();
-
         // Elasticsearch
 
         let conn_pool = SingleNodeConnectionPool::new(conn_url);

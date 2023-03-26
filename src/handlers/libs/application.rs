@@ -6,8 +6,8 @@ use crate::{actions::EClientTesting, handlers::{errors::ErrorTypes, libs::docume
 use super::document::get_document;
 
 /// Inserts a new app name to the application list
-pub async fn insert_new_app_name(app_name: &str, list_name: &str, client: &EClientTesting) -> StatusCode {
-    let exists = exists_app_name(app_name, list_name, client).await;
+pub async fn insert_new_app_name(app_name: &str, client: &EClientTesting) -> StatusCode {
+    let exists = exists_app_name(app_name, client).await;
 
     // If exists, return conflict
     if exists {
@@ -20,9 +20,8 @@ pub async fn insert_new_app_name(app_name: &str, list_name: &str, client: &EClie
     });
 
     // Inserts name into app_id
-    client.insert_document(list_name, &body).await.unwrap().status_code()
+    client.insert_document(APPLICATION_LIST_NAME, &body).await.unwrap().status_code()
 }
-
 
 pub async fn get_app_indexes_list(app_id: &str, client: &EClientTesting) -> Result<Vec<String>, (StatusCode, ErrorTypes)> {
     let (_, value) = match get_document(APPLICATION_LIST_NAME, app_id, Some("indexes".to_string()), client).await{
@@ -40,9 +39,13 @@ pub async fn get_app_indexes_list(app_id: &str, client: &EClientTesting) -> Resu
     return Ok(list);
 }
 
-// TODO: Redo for proper error handling
+// pub async fn exists_app_id(app_id: &str, client: &EClientTesting) -> Result<(), ErrorTypes>{
+//     let app = get_document(APPLICATION_LIST_NAME, app_id, Some("indexes")).await.unwrap();
+// }
+
+// ? TODO: Redo for proper error handling
 /// Checks if the app name exists
-pub async fn exists_app_name(app_name: &str, list_name: &str, client: &EClientTesting) -> bool{
+pub async fn exists_app_name(app_name: &str, client: &EClientTesting) -> bool{
     // This uses the document search for an exact match, if exists true, else false
 
     /*
@@ -55,11 +58,13 @@ pub async fn exists_app_name(app_name: &str, list_name: &str, client: &EClientTe
         ...
     ]
     */
+
+    let app_name_exact = format!("\"{app_name}\"");
     
     // TODO: Possibly flawed search since it may find ones with similar name with exact keywords, unlikely to match when there is no space
-    let body = search_body_builder(Some(app_name.to_string()), Some("name".to_string()), None, false, Some("0".to_string()));
+    let body = search_body_builder(Some(app_name_exact), Some(vec!["name".to_string()]), None, Some("0".to_string()));
 
-    let resp = client.search_index(list_name, &body, None, Some(1)).await.unwrap();
+    let resp = client.search_index(APPLICATION_LIST_NAME, &body, None, Some(1)).await.unwrap();
     let resp_json = resp.json::<Value>().await.unwrap();
     println!("{:#?}", resp_json);
     

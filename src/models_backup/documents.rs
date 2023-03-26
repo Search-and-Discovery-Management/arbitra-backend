@@ -73,6 +73,7 @@ impl EClient {
         };
 
         // Returns everything
+        
         let mut body = json!({
             "_source": false,
             "query": {
@@ -80,6 +81,10 @@ impl EClient {
             },
             "fields": fields_to_return
         });
+        // "_source": false,
+        // "_source": {
+        //     "includes": fields_to_return
+        // }
 
         // Some(temp_variable) = existing_variable {function(temp_variable from existing_variable)}
         if let Some(search) = search_term {
@@ -95,14 +100,22 @@ impl EClient {
                     },
                     "fields": fields_to_return
                 })
+                // "fields": fields_to_return
             } else {
+                // "_source": {
+                //     "includes": fields_to_return
+                // },
                 body = json!({
                     "_source": false,
                     "query": {
-                        "multi_match": {
-                            "query": search,
-                            "fields": "*",
-                            "fuzziness": "AUTO"     
+                        "bool": {
+                            "must": {
+                                "multi_match": {
+                                    "query": search,
+                                    "fields": "*",
+                                    "fuzziness": "AUTO"     
+                                }
+                            }
                         }
                     },
                     "fields": fields_to_return
