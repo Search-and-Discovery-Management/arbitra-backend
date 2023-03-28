@@ -11,7 +11,8 @@ pub struct DocumentSearch {
     pub search_in: Option<String>,
     pub return_fields: Option<String>,
     pub from: Option<i64>,
-    pub count: Option<i64>
+    pub count: Option<i64>,
+    pub wildcards: Option<bool>
 }
 
 /// Used for Get: Search
@@ -28,7 +29,8 @@ pub struct GetDocumentSearchQuery {
     pub search_in: Option<String>,
     pub return_fields: Option<String>,
     pub from: Option<i64>,
-    pub count: Option<i64>
+    pub count: Option<i64>,
+    pub wildcards: Option<bool>
 }
 
 /// Used for Get: Document

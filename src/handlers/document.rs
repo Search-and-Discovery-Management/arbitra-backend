@@ -1,8 +1,8 @@
 use actix_web::{web::{self, Data}, HttpResponse};
 use reqwest::StatusCode;
 use serde_json::{json, Value};
-use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, search_body_builder}, errors::ErrorTypes}};
-use super::{document_struct::{DocumentCreate, GetDocumentSearchIndex, GetDocumentSearchQuery, DocumentSearch, DocumentUpdate, DocumentDelete, DocById, ReturnFields}, libs::{get_mapping_keys, check_server_up_exists_app_index}};
+use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, search_body_builder, index_exists}, errors::ErrorTypes}};
+use super::{document_struct::{DocumentCreate, GetDocumentSearchIndex, GetDocumentSearchQuery, DocumentSearch, DocumentUpdate, DocumentDelete, DocById, ReturnFields}, libs::{check_server_up_exists_app_index}};
 
 /// Document interfaces with index that is stored within the application id
 /// Inserting a document with a new field syncs the fields with all other shards
@@ -36,6 +36,11 @@ pub async fn _create_document(data: web::Json<DocumentCreate>, client: Data::<EC
     // Inserts document into index -> Checks if app has index
     // Checks if index exists
     // Insert
+
+    match index_exists(&data.app_id, &data.index, &client).await {
+        Ok(_) => (),
+        Err((status, err, _)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
+    }
     
     let name = index_name_builder(&data.app_id, &data.index);
     println!("{:#?}", name);
@@ -105,31 +110,28 @@ pub async fn _get_document(data: web::Path<DocById>, query: web::Path<ReturnFiel
 
 /// Returns a list of documents from index, post method
 pub async fn _post_search(data: web::Json<DocumentSearch>, client: Data::<EClientTesting>) -> HttpResponse {
-    // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
-
     match check_server_up_exists_app_index(&data.app_id, &data.index, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
 
     let name = index_name_builder(&data.app_id, &data.index);
-    // let keys: HashMap<String, Vec<String>> = maps.json::<HashMap<String, Vec<String>>>().await.unwrap();
-    // for (i, val) in keys {
-    //     println!("string: {i}, val: {:#?}", val);
-    // }
     
     // TODO: Default search_in into a type of searchableAttributes which defaults its search to all fields with searchableAttributes when nothing is supplied 
-    // let fields_to_search: Option<Vec<String>>;
     let fields_to_search = data.search_in.to_owned().map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
-    // if data.search_in.is_some(){
-    // } else {
-    //     fields_to_search = Some(get_mapping_keys(&name, &client).await)
-    // }
-    // let fields_to_search: Option<Vec<String>> = data.search_in.to_owned().map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
 
-    // println!("{:#?}", fields_to_search);
+    let wildcards = data.wildcards.unwrap_or(false);
 
-    let body = search_body_builder(data.search_term.to_owned(), fields_to_search, data.return_fields.to_owned(), Some("2".to_string()));
+    let term = if data.search_term.is_some() && wildcards{
+        let mut z = data.search_term.clone().unwrap().trim().to_string().replace(" ", "* ");
+        z.push('*');
+        Some(z)
+    } else {
+        data.search_term.clone()
+    };
+    println!("{:#?}", term);
+
+    let body = search_body_builder(term, fields_to_search, data.return_fields.to_owned());
 
     let resp = client.search_index(&name, &body, data.from.to_owned(), data.count.to_owned()).await.unwrap();
 
@@ -165,16 +167,16 @@ pub async fn _search(data: web::Path<GetDocumentSearchIndex>, query: web::Query<
     };
 
     let name = index_name_builder(&data.app_id, &data.index);
+    
+    let fields_to_search = query.search_in.to_owned().map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
+    // let fields_to_search: Option<Vec<String>>;
+    // if query.search_in.is_some(){
+    // } else {
+    //     fields_to_search = Some(get_mapping_keys(&name, &client).await)
+    // }
 
-    let fields_to_search: Option<Vec<String>>;
-    if query.search_in.is_some(){
-        fields_to_search = query.search_in.to_owned().map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
-    } else {
-        fields_to_search = Some(get_mapping_keys(&name, &client).await)
-    }
 
-
-    let body = search_body_builder(query.search_term.to_owned(), fields_to_search, query.return_fields.to_owned(), Some("2".to_string()));
+    let body = search_body_builder(query.search_term.to_owned(), fields_to_search, query.return_fields.to_owned());
 
     let resp = client.search_index(&name, &body, query.from, query.count).await.unwrap();
 

@@ -38,11 +38,6 @@ pub async fn get_app_indexes_list(app_id: &str, client: &EClientTesting) -> Resu
     };
     return Ok(list);
 }
-
-// pub async fn exists_app_id(app_id: &str, client: &EClientTesting) -> Result<(), ErrorTypes>{
-//     let app = get_document(APPLICATION_LIST_NAME, app_id, Some("indexes")).await.unwrap();
-// }
-
 // ? TODO: Redo for proper error handling
 /// Checks if the app name exists
 pub async fn exists_app_name(app_name: &str, client: &EClientTesting) -> bool{
@@ -61,8 +56,8 @@ pub async fn exists_app_name(app_name: &str, client: &EClientTesting) -> bool{
 
     let app_name_exact = format!("\"{app_name}\"");
     
-    // TODO: Possibly flawed search since it may find ones with similar name with exact keywords, unlikely to match when there is no space
-    let body = search_body_builder(Some(app_name_exact), Some(vec!["name".to_string()]), None, Some("0".to_string()));
+    // ! TODO: Possibly flawed search since it may find ones with similar name with exact keywords, although its unlikely to match when there is no space
+    let body = search_body_builder(Some(app_name_exact), Some(vec!["name".to_string()]), None);
 
     let resp = client.search_index(APPLICATION_LIST_NAME, &body, None, Some(1)).await.unwrap();
     let resp_json = resp.json::<Value>().await.unwrap();

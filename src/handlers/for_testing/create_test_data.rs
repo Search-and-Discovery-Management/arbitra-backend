@@ -38,18 +38,25 @@ pub async fn test_data(data: web::Json<TestDataInsert>, client: Data::<EClientTe
 
     let resp = get_app_indexes_list(&data.app_id, &client).await;
     match resp {
-        Ok(mut x) => {
-            // if !index_exists.
-            x.push(idx.clone());
+        Ok(mut list) => {
+            list.push(idx.clone());
+            list.sort();
+            list.dedup();
             let body = json!({
                 "doc": {
-                    "indexes": x
+                    "indexes": list
                 }
             });
             let _ = client.update_document(APPLICATION_LIST_NAME, &data.app_id, &body).await;
         },
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
+    
+    // If dynamic mode has value, set to whatever is inputted
+    let body = json!({
+        "dynamic": true
+    });
+    let _ = client.update_index_mappings(&name, &body).await;
 
     let resp = reqwest::Client::new()
         .get(&data.link.clone().unwrap_or("https://raw.githubusercontent.com/algolia/datasets/master/airports/airports.json".to_string()))

@@ -1,7 +1,7 @@
 // use std::collections::HashMap;
 
 use reqwest::StatusCode;
-use serde_json::{json, Value};
+use serde_json::{json};
 
 use crate::{actions::EClientTesting, handlers::errors::ErrorTypes};
 
@@ -53,17 +53,17 @@ pub fn index_name_builder(app_id: &str, index_name: &str) -> String{
     format!("{}.{}", app_id.to_ascii_lowercase(), index_name.to_ascii_lowercase())
 }
 
-pub async fn get_mapping_keys(index: &str, client: &EClientTesting) -> Vec<String>{
-    let maps = client.get_index_mappings(index).await.unwrap();
-    let resp_json: Value = maps.json::<Value>().await.unwrap();
-    println!("{:#?}", resp_json);
-    let val: Result<Vec<(String, Value)>, serde_json::Error> = serde_json::from_value(resp_json[index]["mappings"]["properties"].clone());
+// pub async fn get_mapping_keys(index: &str, client: &EClientTesting) -> Vec<String>{
+//     let maps = client.get_index_mappings(index).await.unwrap();
+//     let resp_json: Value = maps.json::<Value>().await.unwrap();
+//     println!("{:#?}", resp_json);
+//     let val: Result<Vec<(String, Value)>, serde_json::Error> = serde_json::from_value(resp_json[index]["mappings"]["properties"].clone());
 
-    match val {
-        Ok(fields) => fields.iter().map(|(x, _)| x.to_string()).collect(),
-        Err(_) => Vec::new()
-    }
-}
+//     match val {
+//         Ok(fields) => fields.iter().map(|(x, _)| x.to_string()).collect(),
+//         Err(_) => Vec::new()
+//     }
+// }
 
 pub async fn index_exists(app_id: &str, index_name: &str, client: &EClientTesting) -> Result<(usize, Vec<String>), (StatusCode, ErrorTypes, Vec<String>)> {
     // let resp = client.get_document(APPLICATION_LIST_NAME, app_id, Some("indexes".to_string())).await;

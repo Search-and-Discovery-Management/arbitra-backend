@@ -26,15 +26,10 @@ pub async fn get_document(index: &str, document_id: &str, retrieve_fields: Optio
     Ok((status_code, json_resp))
 }
 
-/// TODO: More advanced search 
-/// 
-// ? (Facets, convert fields to corresponding data types, etc)
-
-// TODO: fix default_search
-pub fn search_body_builder(search_term: Option<String>, search_in: Option<Vec<String>>, retrieve_field: Option<String>, fuzziness: Option<String>) -> Value{
+pub fn search_body_builder(search_term: Option<String>, search_in: Option<Vec<String>>, retrieve_field: Option<String>) -> Value{ // , fuzziness: Option<String>) -> Value{
     // let fields_to_search: Option<Vec<String>> = search_in.map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
 
-    // let fields_to_search = search_in.unwrap_or(vec!["*".to_string()]);
+    let fields_to_search = search_in.unwrap_or(vec!["*".to_string()]);
 
     let fields_to_return = match retrieve_field {
         Some(val) => val.split(',').into_iter().map(|x| x.trim().to_string()).collect(),
@@ -42,12 +37,6 @@ pub fn search_body_builder(search_term: Option<String>, search_in: Option<Vec<St
     };
 
     // Returns everything
-
-    // println!("{:#?}", );
-
-    // "_source": {
-    //     "includes": fields_to_return
-    // },
     let mut body = json!({
         "_source": {
             "includes": fields_to_return
@@ -73,42 +62,64 @@ pub fn search_body_builder(search_term: Option<String>, search_in: Option<Vec<St
     //         "fields": fields_to_return
     //     })
     // } else {
-    if let Some(term) = search_term {
-        if let Some(fields_to_search) = search_in {
-            // "_source": true,
+        if let Some(term) = search_term {
             body = json!({
                 "_source": {
                     "includes": fields_to_return
                 },
                 "query": {
-                        "multi_match": {
+                        "query_string": {
                             "query": term,
+                            "type": "cross_fields",
                             "fields": fields_to_search,
-                            "fuzziness": fuzziness.unwrap_or("AUTO".to_string()),
-                            "operator": "and"    
+                            "minimum_should_match": "75%"
                         }
-                    },
+                    }
                 })
-                // "fields": fields_to_return
-            } else {
-                // "_source": true,
-                // "operator": "and"
-                body = json!({
-                    "_source": {
-                        "includes": fields_to_return
-                    },
-                    "query": {
-                        "match": {
-                            "_default_search": {
-                                "query": term,
-                                "fuzziness": fuzziness.unwrap_or("AUTO".to_string()),
-                                "operator": "and"
-                            }
-                        }
-                    },
-                })
-            };
-        };
+            // "fields": fields_to_return
+            // "operator": "or"
+            // "operator": "and"    
+        }
+
+        // Testing copy_to 
+        // if let Some(term) = search_term {
+        //     if let Some(fields_to_search) = search_in {
+        //         // "_source": true,
+        //         body = json!({
+        //         "_source": {
+        //             "includes": fields_to_return
+        //         },
+        //         "query": {
+        //                 "multi_match": {
+        //                     "query": term,
+        //                     "fields": fields_to_search,
+        //                     "fuzziness": fuzziness.unwrap_or("AUTO".to_string()),
+        //                 }
+        //             },
+        //             "fields": fields_to_return
+        //         })
+        //         // "operator": "and"    
+        //     } else {
+        //         // "_source": true,
+        //         // "operator": "and"
+        //         println!("{:#?}", fields_to_return);
+        //         println!("{:#?}", search_in);
+        //         body = json!({
+        //             "_source": {
+        //                 "includes": fields_to_return
+        //             },
+        //             "query": {
+        //                 "match": {
+        //                     "default_search": {
+        //                         "query": term,
+        //                         "operator": "or"
+        //                     }
+        //                 }
+        //             }
+        //         })
+        //     };
+        // };
+        // "fuzziness": fuzziness.unwrap_or("AUTO".to_string()),
         // "fields": fields_to_return
         // }
         // "fields": fields_to_return

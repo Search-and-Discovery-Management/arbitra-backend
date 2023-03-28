@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use crate::{actions::client::EClientTesting, handlers::errors::ErrorTypes, APPLICATION_LIST_NAME};
 
-use super::libs::{{create_or_exists_index, is_server_up, insert_new_app_name, search_body_builder, get_document, index_name_builder}};
+use super::libs::{{create_or_exists_index, is_server_up, insert_new_app_name, search_body_builder, get_document, index_name_builder}, get_app_indexes_list};
 use super::applications_struct::*;
 
 /// Consists of
@@ -84,7 +84,7 @@ pub async fn get_application_list(data: web::Path<SearchApp>, client: Data::<ECl
     //     "fields": ["name", "indexes"]
     // });
 
-    let body = search_body_builder(data.app_name.clone(), None, Some("_id,name,indexes".to_string()), Some("AUTO".to_string()));
+    let body = search_body_builder(data.app_name.clone(), None, Some("_id,name,indexes".to_string()));
     let json_resp = client.search_index(APPLICATION_LIST_NAME, &body, None, None).await.unwrap().json::<Value>().await.unwrap();
     HttpResponse::Ok().json(json!({
         "took": json_resp["took"],
@@ -140,12 +140,20 @@ pub async fn delete_application(data: web::Path<DeleteApp>, client: Data::<EClie
     // 1. Delete all the index shards with application id before it -> Index Delete
     // 2. Delete application inside application list -> Document Delete
 
-    // let app_id = data.into_inner();
     if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
+
+    match get_app_indexes_list(&data.app_id, &client).await {
+        Ok(x) => {
+            for i in x {
+                let _ = client.delete_index(&index_name_builder(&data.app_id, &i)).await;
+            }
+        },
+        Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
+    }
 
     let resp = client.delete_document(APPLICATION_LIST_NAME, &data.app_id).await.unwrap();
     
-    let _ = client.delete_index(&index_name_builder(&data.app_id, "*"));
+    // let _ = client.delete_index(&index_name_builder(&data.app_id, "*"));
 
     HttpResponse::build(resp.status_code()).finish()
 }
