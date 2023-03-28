@@ -1,3 +1,149 @@
+# Application
+
+## GET /api/apps
+----
+    Gets a list of applications
+
+* **URL Params**
+
+    None
+
+* **Data Params**
+
+    None
+
+* **Headers**
+
+    None
+
+* **Success Response**
+    * **Code:** 200
+    
+        **Content:**
+        ```
+        [
+            {<data_object>},
+            {<data_object>},
+            {<data_object>}
+        ]
+        ```
+
+## GET /api/app/:app_id
+----
+    Gets a specific application
+
+* **URL Params**
+
+    ***Required:***
+
+    `app_id=[string]`
+
+* **Data Params**
+
+    None
+
+* **Headers**
+
+    None
+
+* **Success Response**
+    * **Code:** 200
+    
+        **Content:**
+        ```
+        {<data_object>>}
+        ```
+* **Error Response**
+    * **Code:** 404
+        
+        **Content:**
+        ```
+        {
+            "error": "Application [id] not found"
+        }
+        ```
+
+## POST /api/app
+----
+    Creates a new application
+
+* **URL Params**
+
+    None
+
+* **Data Params**
+
+    ```
+    {
+        "app_name": string
+    }
+    ```
+
+* **Headers**
+
+    None
+
+* **Success Response**
+    * **Code:** 201
+
+* **Error Response**
+
+    * **Code:** 409
+
+## PUT /api/app
+----
+    Updates the mappings of an index
+
+* **URL Params**
+
+    None
+
+* **Data Params**
+
+    ```
+    {
+        "app_id": string,
+        "app_name": string
+    }
+    ```
+
+* **Headers**
+
+    None
+
+* **Success Response**
+    * **Code:** 200
+
+## DELETE /api/app/:app_id
+----
+    Deletes an application
+
+* **URL Params**
+
+    **Required:**
+
+    `app_id=[string]`
+
+* **Data Params**
+
+    None
+
+* **Headers**
+
+    None
+
+* **Success Response**
+    * **Code:** 200
+
+* **Error Response**
+    * **Code:** 404
+
+        ```
+        {    
+            "error": "Application [id] Not Found"
+        }
+        ```
+
 # Index
 
 ## GET /api/index/:app_id
@@ -341,9 +487,9 @@
         {
             "data" = 
                 [
-                    {<document_object>},
-                    {<document_object>},
-                    {<document_object>}
+                    {<data_object>},
+                    {<data_object>},
+                    {<data_object>}
                 ],
             "match_type": string,
             "took": int,
