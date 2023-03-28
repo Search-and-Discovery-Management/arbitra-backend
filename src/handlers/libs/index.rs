@@ -50,7 +50,7 @@ pub async fn create_or_exists_index(app_id: Option<String>, index: &str, shards:
 }
 
 pub fn index_name_builder(app_id: &str, index_name: &str) -> String{
-    format!("{}.{}", app_id.to_ascii_lowercase(), index_name.to_ascii_lowercase())
+    format!("{}.{}", app_id.trim().to_ascii_lowercase(), index_name.trim().to_ascii_lowercase())
 }
 
 // pub async fn get_mapping_keys(index: &str, client: &EClientTesting) -> Vec<String>{
@@ -81,6 +81,7 @@ pub async fn index_exists(app_id: &str, index_name: &str, client: &EClientTestin
     //     Some(x) => serde_json::from_value(x.clone()).unwrap(),
     //     None => Vec::new()
     // };
+
     let list = match get_app_indexes_list(app_id, client).await {
         Ok(x) => x,
         Err((status, error)) => return Err((status, error, Vec::new()))

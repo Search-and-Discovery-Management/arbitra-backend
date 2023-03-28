@@ -10,19 +10,13 @@ use super::{document_struct::{DocumentCreate, GetDocumentSearchIndex, GetDocumen
 /// All operations requires app_id and the index name
 /// 
 
-// Temp _ because models and routes having same name
-
-pub async fn _create_document(data: web::Json<DocumentCreate>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn create_document(data: web::Json<DocumentCreate>, client: Data::<EClientTesting>) -> HttpResponse {  
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
-    match check_server_up_exists_app_index(&data.app_id, &data.index, &client).await{
+    let idx = data.index.trim().to_ascii_lowercase();
+    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
-    
-    // match index_exists(&data.app_id, &data.index, &client).await{
-    //     Ok(_) => (),
-    //     Err((x, y, _)) => return HttpResponse::build(x).json(json!({"error": y.to_string()}))
-    // };
     
     // Check app exists -> check index exists
     // -> Get document
@@ -37,12 +31,12 @@ pub async fn _create_document(data: web::Json<DocumentCreate>, client: Data::<EC
     // Checks if index exists
     // Insert
 
-    match index_exists(&data.app_id, &data.index, &client).await {
+    match index_exists(&data.app_id, &idx, &client).await {
         Ok(_) => (),
         Err((status, err, _)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
     
-    let name = index_name_builder(&data.app_id, &data.index);
+    let name = index_name_builder(&data.app_id, &idx);
     println!("{:#?}", name);
 
     let dat = &data.data;
@@ -79,17 +73,19 @@ pub async fn _create_document(data: web::Json<DocumentCreate>, client: Data::<EC
     HttpResponse::build(status).finish()
 }
 
-pub async fn _get_document(data: web::Path<DocById>, query: web::Path<ReturnFields>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn get_document(data: web::Path<DocById>, query: web::Path<ReturnFields>, client: Data::<EClientTesting>) -> HttpResponse {  
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     // App id, index name, and document id
     // This will retrieve the shard number appended on the id
 
-    match check_server_up_exists_app_index(&data.app_id, &data.index, &client).await{
+    let idx = data.index.trim().to_ascii_lowercase();
+
+    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
 
-    let name = &index_name_builder(&data.app_id, &data.index);
+    let name = &index_name_builder(&data.app_id, &idx);
 
     let resp = client.get_document(name, &data.document_id, query.return_fields.to_owned()).await.unwrap();
 
@@ -109,13 +105,15 @@ pub async fn _get_document(data: web::Path<DocById>, query: web::Path<ReturnFiel
 }
 
 /// Returns a list of documents from index, post method
-pub async fn _post_search(data: web::Json<DocumentSearch>, client: Data::<EClientTesting>) -> HttpResponse {
-    match check_server_up_exists_app_index(&data.app_id, &data.index, &client).await{
+pub async fn post_search(data: web::Json<DocumentSearch>, client: Data::<EClientTesting>) -> HttpResponse {
+
+    let idx = data.index.trim().to_ascii_lowercase();
+    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
-
-    let name = index_name_builder(&data.app_id, &data.index);
+    
+    let name = index_name_builder(&data.app_id, &idx);
     
     // TODO: Default search_in into a type of searchableAttributes which defaults its search to all fields with searchableAttributes when nothing is supplied 
     let fields_to_search = data.search_in.to_owned().map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
@@ -158,15 +156,17 @@ pub async fn _post_search(data: web::Json<DocumentSearch>, client: Data::<EClien
 }
 
 /// Returns a list of documents from index
-pub async fn _search(data: web::Path<GetDocumentSearchIndex>, query: web::Query<GetDocumentSearchQuery>, client: Data::<EClientTesting>) -> HttpResponse {
+pub async fn search(data: web::Path<GetDocumentSearchIndex>, query: web::Query<GetDocumentSearchQuery>, client: Data::<EClientTesting>) -> HttpResponse {
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
 
-    match check_server_up_exists_app_index(&data.app_id, &data.index, &client).await{
+    let idx = data.index.trim().to_ascii_lowercase();
+
+    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
 
-    let name = index_name_builder(&data.app_id, &data.index);
+    let name = index_name_builder(&data.app_id, &idx);
     
     let fields_to_search = query.search_in.to_owned().map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
     // let fields_to_search: Option<Vec<String>>;
@@ -203,16 +203,18 @@ pub async fn _search(data: web::Path<GetDocumentSearchIndex>, query: web::Query<
     }))
 }
 
-pub async fn _update_document(data: web::Json<DocumentUpdate>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn update_document(data: web::Json<DocumentUpdate>, client: Data::<EClientTesting>) -> HttpResponse {  
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     // Updates the documents in shard
 
-    match check_server_up_exists_app_index(&data.app_id, &data.index, &client).await{
+    let idx = data.index.trim().to_ascii_lowercase();
+
+    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
     
-    let name = index_name_builder(&data.app_id, &data.index);
+    let name = index_name_builder(&data.app_id, &idx);
     
     let doc = json!({
         "doc": &data.data
@@ -234,16 +236,18 @@ pub async fn _update_document(data: web::Json<DocumentUpdate>, client: Data::<EC
     HttpResponse::build(status).finish()
 }
 
-pub async fn _delete_document(data: web::Path<DocumentDelete>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn delete_document(data: web::Path<DocumentDelete>, client: Data::<EClientTesting>) -> HttpResponse {  
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     // Deletes the document in shard
 
-    match check_server_up_exists_app_index(&data.app_id, &data.index, &client).await{
+    let idx = data.index.trim().to_ascii_lowercase();
+
+    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
 
-    let name = index_name_builder(&data.app_id, &data.index);
+    let name = index_name_builder(&data.app_id, &idx);
 
     let resp = client.delete_document(&name, &data.document_id).await.unwrap();
 

@@ -1,14 +1,19 @@
 # Index
 
-## GET /api/index?:index
+## GET /api/index/:app_id
 ----
     Gets a list of index, specifying the name of the index returns only the specified index
 
 * **URL Params**
 
+    ***Required:***
+
+    `app_id=[string]`
+
     ***Optional:*** 
     
     `index=[string]`
+
 
 * **Data Params**
 
@@ -40,7 +45,15 @@
         }
         ```
 
-## GET /api/mappings/:index
+        OR
+
+        ```
+        {
+            "error": "Application [id] not found"
+        }
+        ```
+
+## GET /api/index/mappings/:app_id/:index
 ----
     Gets the mappings of an index
 
@@ -48,6 +61,7 @@
 
     ***Required:*** 
     
+    `app_id=[string]`
     `index=[string]`
 
 * **Data Params**
@@ -79,6 +93,15 @@
     * **Code:** 404
         
         **Content:**
+
+        ```
+        {
+            "error": "Application [id] not found"
+        }
+        ```
+
+        OR
+        
         ```
         {    
             "error": "Index [name] not found"
@@ -97,6 +120,7 @@
 
     ```
     {
+        "app_id": <app_id>,
         "index": string
     }
     ```
@@ -109,6 +133,17 @@
     * **Code:** 201
 
 * **Error Response**
+
+    * **Code:** 404
+
+        **Content:**
+
+            ```
+            {    
+                "error": "Application [id] Not Found"
+            }
+            ```
+
     * **Code:** 409
 
         **Content:**
@@ -119,7 +154,7 @@
             }
             ```
 
-## PUT /api/mappings
+## PUT /api/index/mappings
 ----
     Updates the mappings of an index
 
@@ -131,6 +166,7 @@
 
     ```
     {
+        "app_id": string,
         "index": string,
         "mappings": <json_object>
     }
@@ -154,7 +190,6 @@
             "error": "Bad Data Request"
         }
         ```
-        OR
 
     * **Code:** 404
      
@@ -164,14 +199,23 @@
             "error": "Index [name] not found"
         }
         ```
+        OR
 
-## DELETE /api/index/:index
+        ```
+        {    
+            "error": "Application [id] Not Found"
+        }
+        ```
+
+## DELETE /api/index/:app_id/:index
 ----
     Deletes an index
 
 * **URL Params**
 
     **Required:**
+
+    `app_id=[string]`
 
     `index=[string]`
 
@@ -195,15 +239,24 @@
             "error": "Index [name] not found"
         }
         ```
+        OR
+
+        ```
+        {    
+            "error": "Application [id] Not Found"
+        }
+        ```
 
 # Document
 
-## GET /api/document/:index/:document_id
+## GET /api/document/:app_id/:index/:document_id
 ----
     Returns a single document in an index
 * **URL Params**
 
     ***Required:***
+
+    `app_id=[string]`
 
     `index=[string]`
     
@@ -228,6 +281,15 @@
     * **Code:** 404
 
         **Content:**
+
+        ```
+        {    
+            "error": "Application [id] Not Found"
+        }
+        ```
+
+        OR
+
         ```
         {    
             "error": "Index [name] not found"
@@ -256,12 +318,14 @@
 
     ```
     {
+        "app_id": <app_id>
         "index": <index_name>,
         "search_term": string, (Optional)
         "search_in": <fields, comma separated>, (Optional)
         "return_fields": <fields, comma separated>, (Optional)
         "from": int, (Optional)
-        "count": int (Optional)
+        "count": int, (Optional)
+        "wildcards": bool (Optional)
     }
     ```
 
@@ -289,14 +353,20 @@
 * **Error Response**
     * **Code:** 404
 
+        ```
+        {    
+            "error": "Application [id] Not Found"
+        }
+        ```
+
+        OR
+
         Content:
         ```
         {
             "error": "Index [name] not found"
         }
         ```
-
-        OR
 
     * **Code:** 400
 
@@ -307,13 +377,15 @@
         }
         ```
 
-## GET /api/search/:index
+## GET /api/search/:app_id/:index
 ----
     The same as post, searches an index for documents
 
 * **URL Params**
 
     ***Required:*** 
+
+    `app_id=[string]`
 
     `index=[string]`
 
@@ -330,6 +402,8 @@
     `from=[int]`
 
     `count=[int]`
+
+    `wildcards=[bool]`
 * **Data Params**
 
     None
@@ -359,6 +433,14 @@
     * **Code:** 404
 
         Content:
+        ```
+        {    
+            "error": "Application [id] Not Found"
+        }
+        ```
+
+        OR
+
         ```
         {
             "error": "Index [name] not found"
@@ -388,6 +470,7 @@
 
     ```
     {
+        "app_id": <app_id>,
         "index": <index_name>,
         "dynamic_mode": <modes: "true", "false", "strict">, (Optional)
         "data": <json_object>
@@ -417,6 +500,14 @@
 
         Content:
         ```
+        {    
+            "error": "Application [id] Not Found"
+        }
+        ```
+
+        OR
+
+        ```
         {
             "error": "Index [name] not found"
         }
@@ -434,6 +525,7 @@
 
     ```
     {
+        "app_id": <app_id>,
         "index": <index_name>,
         "dynamic_mode": <modes: "true", "false", "strict"> (Optional),
         "data": <json_object>
@@ -463,18 +555,28 @@
 
         Content:
         ```
+        {    
+            "error": "Application [id] Not Found"
+        }
+        ```
+
+        OR
+
+        ```
         {
             "error": "Index [name] not found"
         }
         ```
     
-## DELETE /api/document/:index/:document_id
+## DELETE /api/document/:app_id/:index/:document_id
 ----
     Deletes a document
 
 * **URL Params**
     
     ***Required:***
+
+    `app_id=[string]`
 
     `index=[string]`
 
@@ -497,6 +599,14 @@
     * **Code:** 404
 
         Content:
+        ```
+        {    
+            "error": "Application [id] Not Found"
+        }
+        ```
+
+        OR
+
         ```
         {
             "error": "Index [name] not found"
