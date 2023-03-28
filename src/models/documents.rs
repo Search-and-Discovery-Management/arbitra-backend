@@ -90,34 +90,20 @@ impl EClient {
             "fields": fields_to_return
         });
 
-        // Some(temp_variable) = existing_variable {function(temp_variable from existing_variable)}
-        if let Some(search) = search_term {
-            if let Some(search_field) = fields_to_search {
-                body = json!({
-                    "_source": false,
-                    "query": {
-                        "multi_match": {
-                            "query": search,
-                            "fields": search_field,
-                            "fuzziness": "AUTO"     
+        if let Some(term) = search_term {
+            body = json!({
+                "_source": false,
+                "query": {
+                        "query_string": {
+                            "query": term,
+                            "type": "cross_fields",
+                            "fields": fields_to_search.unwrap_or(vec!["*".to_string()]),
+                            "minimum_should_match": "75%"
                         }
                     },
-                    "fields": fields_to_return
-                })
-            } else {
-                body = json!({
-                    "_source": false,
-                    "query": {
-                        "multi_match": {
-                            "query": search,
-                            "fields": "*",
-                            "fuzziness": "AUTO"     
-                        }
-                    },
-                    "fields": fields_to_return
-                });
-            }
-        };
+                "fields": fields_to_return
+                })   
+        }
 
         let resp = self.elastic
             .search(SearchParts::Index(&[index]))
