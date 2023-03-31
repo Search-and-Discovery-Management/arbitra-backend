@@ -88,7 +88,7 @@ pub async fn index_exists(app_id: &str, index_name: &str, client: &EClientTestin
     };
 
     match list.iter().position(|x| x.eq(index_name)) {
-        Some(x) => return Ok((x, list)),
-        None => return Err((StatusCode::NOT_FOUND, ErrorTypes::IndexNotFound(index_name.to_string()), list))
+        Some(x) => Ok((x, list)),
+        None => Err((StatusCode::NOT_FOUND, ErrorTypes::IndexNotFound(index_name.to_string()), list))
     }
 }

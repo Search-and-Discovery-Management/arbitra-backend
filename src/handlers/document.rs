@@ -121,7 +121,7 @@ pub async fn post_search(data: web::Json<DocumentSearch>, client: Data::<EClient
     let wildcards = data.wildcards.unwrap_or(false);
 
     let term = if data.search_term.is_some() && wildcards{
-        let mut z = data.search_term.clone().unwrap().trim().to_string().replace(" ", "* ");
+        let mut z = data.search_term.clone().unwrap().trim().to_string().replace(' ', "* ");
         z.push('*');
         Some(z)
     } else {

@@ -23,7 +23,7 @@ pub async fn create_index(data: web::Json<IndexCreate>, client: Data::<EClientTe
 
     // if get_document returns 404, then app id doesnt exist, if there is but "indexes" field doesnt exist, then put a new one
 
-    let idx = data.index.trim().to_ascii_lowercase().replace(" ", "_");
+    let idx = data.index.trim().to_ascii_lowercase().replace(' ', "_");
 
     return match index_exists(&data.app_id, &idx, &client).await {
         // If exists, return, else, create index
@@ -84,7 +84,7 @@ pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<Optio
     }
 
     let json_resp = idx.json::<Vec<Value>>().await.unwrap();
-    return HttpResponse::build(status).json(json_resp);
+    HttpResponse::build(status).json(json_resp)
 }
 
 pub async fn get_mappings(data: web::Path<RequiredIndex>, client: Data::<EClientTesting>) -> HttpResponse {
@@ -112,7 +112,7 @@ pub async fn get_mappings(data: web::Path<RequiredIndex>, client: Data::<EClient
     println!("{:#?}", idx);
 
     let json_resp = idx.json::<Value>().await.unwrap();
-    return HttpResponse::build(status).json(json_resp[&name].clone());
+    HttpResponse::build(status).json(json_resp[&name].clone())
 }
 
 pub async fn update_mappings(data: web::Json<IndexMappingUpdate>, client: Data::<EClientTesting>) -> HttpResponse {  

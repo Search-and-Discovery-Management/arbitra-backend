@@ -36,7 +36,7 @@ pub async fn get_app_indexes_list(app_id: &str, client: &EClientTesting) -> Resu
         Some(x) => serde_json::from_value(x.clone()).unwrap(),
         None => Vec::new()
     };
-    return Ok(list);
+    Ok(list)
 }
 // ? TODO: Redo for proper error handling
 /// Checks if the app name exists
@@ -65,9 +65,5 @@ pub async fn exists_app_name(app_name: &str, client: &EClientTesting) -> bool{
     
     let num = resp_json["hits"]["total"]["value"].as_i64().unwrap();
 
-    if num > 0 {
-        return true
-    } else {
-        return false
-    }
+    num > 0
 }

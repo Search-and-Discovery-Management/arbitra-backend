@@ -55,13 +55,13 @@ pub async fn initialize_new_app_id(data: web::Json<NewApp>, client: Data::<EClie
 
     match app_id_status {
         StatusCode::CREATED => {
-            return HttpResponse::Created().finish()
+            HttpResponse::Created().finish()
         },
         StatusCode::CONFLICT => {
-            return HttpResponse::Conflict().finish()
+            HttpResponse::Conflict().finish()
         },
         _ => {
-            return HttpResponse::build(app_id_status).json(json!({"error": ErrorTypes::Unknown.to_string()}));
+            HttpResponse::build(app_id_status).json(json!({"error": ErrorTypes::Unknown.to_string()}))
         }
     }
 }
@@ -106,9 +106,9 @@ pub async fn get_application(data: web::Path<GetApp>, client: Data::<EClientTest
     let resp = get_document(APPLICATION_LIST_NAME, &data.app_id, Some("_id,name,indexes".to_string()), &client).await;
 
     match resp {
-        Ok((code, value)) => return HttpResponse::build(code).json(value),
-        Err((code, error)) => return HttpResponse::build(code).json(json!({"error": error.to_string()})) 
-    };
+        Ok((code, value)) => HttpResponse::build(code).json(value),
+        Err((code, error)) => HttpResponse::build(code).json(json!({"error": error.to_string()})) 
+    }
 }
 
 // 404 or 200

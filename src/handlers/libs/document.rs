@@ -2,7 +2,6 @@
 // pub async fn convert_to_bulk(operation_type: BulkTypes, data: &Value) -> {
 
 // }
-
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
@@ -124,5 +123,5 @@ pub fn search_body_builder(search_term: Option<String>, search_in: Option<Vec<St
         // }
         // "fields": fields_to_return
         
-    return body;
+    body
 }

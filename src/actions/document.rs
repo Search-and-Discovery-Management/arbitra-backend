@@ -1,4 +1,4 @@
-use elasticsearch::{IndexParts, UpdateParts, SearchParts, GetSourceParts, DeleteParts, http::response::Response, Error}; // , BulkOperations};
+use elasticsearch::{IndexParts, UpdateParts, SearchParts, GetSourceParts, DeleteParts, http::response::Response, Error, BulkOperation, BulkParts}; //, BulkOperations};
 use serde_json::{Value};
 
 use super::EClientTesting;
@@ -15,14 +15,29 @@ impl EClientTesting {
 
     /// Document bulk operation (create, update, delete)
     /// Unused, Untested
-    // pub async fn bulk_documents(&self, index: &str, data: BulkOperations) -> Result<Response, Error>{
+    // pub async fn bulk_documents(&self, index: &str, body: Vec<&BulkOperations>) -> Result<Response, Error>{
     //     self.elastic
     //         .bulk(elasticsearch::BulkParts::Index(index))
-    //         .body(vec![data])
+    //         .body(body)
     //         .send()
     //         .await
     // }
 
+    // Not properly working
+    pub async fn bulk_create_documents(&self, index: &str, data: &[Value]) -> Result<Response, Error> {
+        let body: Vec<BulkOperation<_>> = data
+            .iter()
+            .map(|p| {
+                BulkOperation::index(p).index(index).into()
+            })
+            .collect();
+
+        self.elastic
+            .bulk(BulkParts::Index(index))
+            .body(body)
+            .send()
+            .await
+    }
     /// Finds document in index
     pub async fn search_index(&self, index: &str, body: &Value, from: Option<i64>, count: Option<i64>) -> Result<Response, Error>{
 
@@ -49,7 +64,7 @@ impl EClientTesting {
         //     .unwrap();
 
         self.elastic
-            .get_source(GetSourceParts::IndexId(&index, &doc_id))
+            .get_source(GetSourceParts::IndexId(index, doc_id))
             ._source_includes(&[&fields_to_return])
             .send()
             .await

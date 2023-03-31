@@ -41,7 +41,7 @@ impl EClientTesting{
         // Check if index exists
         self.elastic
             .indices()
-            .exists(IndicesExistsParts::Index(&[&index]))
+            .exists(IndicesExistsParts::Index(&[index]))
             .send()
             .await
     }
@@ -50,7 +50,7 @@ impl EClientTesting{
     pub async fn get_index_mappings(&self, index: &str) -> Result<Response, Error>{
         self.elastic
             .indices()
-            .get_mapping(IndicesGetMappingParts::Index(&[&index]))
+            .get_mapping(IndicesGetMappingParts::Index(&[index]))
             .send()
             .await
     }
