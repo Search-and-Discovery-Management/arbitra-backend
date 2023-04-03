@@ -86,11 +86,9 @@ pub async fn get_application_list(data: web::Path<SearchApp>, client: Data::<ECl
 
     let body = search_body_builder(data.app_name.clone(), None, Some("_id,name,indexes".to_string()));
     let json_resp = client.search_index(APPLICATION_LIST_NAME, &body, None, None).await.unwrap().json::<Value>().await.unwrap();
-    HttpResponse::Ok().json(json!({
-        "took": json_resp["took"],
-        "data": json_resp["hits"]["hits"],
-        "total_data": json_resp["hits"]["total"]["value"],
-    }))
+    HttpResponse::Ok().json(json!(
+        json_resp["hits"]["hits"]
+    ))
 }
 
 
