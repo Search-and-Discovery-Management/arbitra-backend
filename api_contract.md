@@ -92,7 +92,7 @@
 
 ## PUT /api/app
 ----
-    Updates the mappings of an index
+    Updates the name of an app
 
 * **URL Params**
 
@@ -673,7 +673,7 @@
     {
         "app_id": <app_id>,
         "index": <index_name>,
-        "dynamic_mode": <modes: "true", "false", "strict"> (Optional),
+        "document_id": <index_id>,
         "data": <json_object>
     }
     ```
