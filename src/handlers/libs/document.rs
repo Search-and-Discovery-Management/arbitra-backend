@@ -1,13 +1,14 @@
 // ? TODO: Create bulk function
 // pub async fn convert_to_bulk(operation_type: BulkTypes, data: &Value) -> {
 
+use actix_web::HttpResponse;
 // }
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
-use crate::{handlers::{errors::ErrorTypes}, actions::EClientTesting};
+use crate::{handlers::{errors::ErrorTypes, libs::index_name_builder}, actions::EClientTesting};
 
-pub async fn get_document(index: &str, document_id: &str, retrieve_fields: Option<String>, client: &EClientTesting) -> Result<(StatusCode, Value), (StatusCode, ErrorTypes)>{
+pub async fn get_document(index: &str, document_id: &str, retrieve_fields: &Option<String>, client: &EClientTesting) -> Result<(StatusCode, Value), (StatusCode, ErrorTypes)>{
     let resp = client.get_document(index, document_id, retrieve_fields).await.unwrap();
 
     let status_code = resp.status_code();
@@ -25,10 +26,38 @@ pub async fn get_document(index: &str, document_id: &str, retrieve_fields: Optio
     Ok((status_code, json_resp))
 }
 
-pub fn search_body_builder(search_term: Option<String>, search_in: Option<Vec<String>>, retrieve_field: Option<String>) -> Value{ // , fuzziness: Option<String>) -> Value{
+pub async fn document_search(app_id: &str, index: &str, body: &Value, from: &Option<i64>, count: &Option<i64>, client: &EClientTesting) -> Result<(StatusCode, Value), HttpResponse> {
+
+    let name = index_name_builder(app_id, index);
+
+    let resp = client.search_index(&name, &body, &from, &count).await.unwrap();
+
+    let status = resp.status_code();
+
+    if !status.is_success() {
+        let error = match status {
+            StatusCode::NOT_FOUND => ErrorTypes::IndexNotFound(index.to_owned()).to_string(),
+            StatusCode::BAD_REQUEST => ErrorTypes::BadDataRequest.to_string(),
+            _ => ErrorTypes::Unknown.to_string()
+        };
+
+        return Err(HttpResponse::build(status).json(json!({"error": error})));
+    };
+
+    // let json_resp = resp.json::<Value>().await.unwrap();
+    let convert_time = std::time::Instant::now();
+    let json_resp = resp.json::<Value>().await.unwrap();
+    println!("{:#?}", convert_time.elapsed().as_millis());
+    
+    return Ok((status, json_resp))
+}
+
+
+pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<String>>, retrieve_field: &Option<String>) -> Value{ // , fuzziness: Option<String>) -> Value{
     // let fields_to_search: Option<Vec<String>> = search_in.map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
 
-    let fields_to_search = search_in.unwrap_or(vec!["*".to_string()]);
+    // let fields_to_search = search_in.as_deref().unwrap_or(&vec!["*".to_string()]);
+    let fields_to_search = search_in.to_owned().unwrap_or(vec!["*".to_string()]);
 
     let fields_to_return = match retrieve_field {
         Some(val) => val.split(',').into_iter().map(|x| x.trim().to_string()).collect(),

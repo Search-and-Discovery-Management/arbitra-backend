@@ -1,26 +1,37 @@
-use std::time::Duration;
-
 use actix_web::{HttpResponse, web::{self, Data}};
 use reqwest::StatusCode;
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
-use crate::{actions::EClientTesting, handlers::libs::create_or_exists_index};
+use crate::{actions::EClientTesting, handlers::libs::{check_server_up_exists_app_index, index_name_builder}};
 
 #[derive(Deserialize)]
 pub struct CreateBulkDocuments{
+    pub app_id: String,
     pub index: String,
-    pub data: Vec<Value>
+    pub data: Vec<Value>,
+    pub dynamic_mode: String
 }
 
 /// TODO: Turn into an actually usable function
-pub async fn testing_create_bulk_documents(client: Data::<EClientTesting>, data: web::Json<CreateBulkDocuments>) -> HttpResponse {
+/// 
+/// TODO: Mappings -> Always enable dynamic mode (and set it back to how it was previously?)
+/// 
+/// ? Return the errors? or only the count of errors?
+/// 
+/// Bulk Document Create Input, Only allows input into an existing index
+pub async fn testing_create_bulk_documents(data: web::Json<CreateBulkDocuments>, client: Data::<EClientTesting>) -> HttpResponse {
 
-    create_or_exists_index(None, &data.index, None, None, &client).await;
+    // create_or_exists_index(Some(data.app_id.to_string()), &data.index, None, None, &client).await;
 
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    match check_server_up_exists_app_index(&data.app_id, &data.index, &client).await{
+        Ok(_) => (),
+        Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
+    }
 
-    let resp = client.bulk_create_documents(&data.index, &data.data).await.unwrap();
+    let name = index_name_builder(&data.app_id, &data.index);
+
+    let resp = client.bulk_create_documents(&name, &data.data).await.unwrap();
 
     let status = resp.status_code();
     let json: Value = resp.json::<Value>().await.unwrap();

@@ -492,7 +492,8 @@
                     {<data_object>}
                 ],
             "match_type": string,
-            "took": int,
+            "search_took": int,
+            "total_took": int,
             "total_data": int
         }
         ```
@@ -571,7 +572,8 @@
                     {<document_object>}
                 ],
             "match_type": string,
-            "took": int,
+            "search_took": int,
+            "total_took": int,
             "total_data": int
         }
         ```

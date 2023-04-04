@@ -35,13 +35,16 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
+
+    let client = Data::new(EClientTesting::new("http://127.0.0.1:9200"));
+
     // Start server
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         App::new()
         .wrap(cors())
         .service(
             web::scope("/api")
-                .app_data(Data::new(EClientTesting::new("http://127.0.0.1:9200")))
+                .app_data(client.clone())
                 .route("/app", web::post().to(initialize_new_app_id))
                 .route("/apps", web::get().to(get_application_list))
                 .route("/app/{app_id}", web::get().to(get_application))

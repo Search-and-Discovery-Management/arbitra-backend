@@ -24,7 +24,7 @@ pub async fn insert_new_app_name(app_name: &str, client: &EClientTesting) -> Sta
 }
 
 pub async fn get_app_indexes_list(app_id: &str, client: &EClientTesting) -> Result<Vec<String>, (StatusCode, ErrorTypes)> {
-    let (_, value) = match get_document(APPLICATION_LIST_NAME, app_id, Some("indexes".to_string()), client).await{
+    let (_, value) = match get_document(APPLICATION_LIST_NAME, app_id, &Some("indexes".to_string()), client).await{
         Ok(x) => x,
         Err((status, _)) => return match status {
             StatusCode::NOT_FOUND => Err((status, ErrorTypes::ApplicationNotFound(app_id.to_string()))),
@@ -57,9 +57,9 @@ pub async fn exists_app_name(app_name: &str, client: &EClientTesting) -> bool{
     let app_name_exact = format!("\"{app_name}\"");
     
     // ! TODO: Possibly flawed search since it may find ones with similar name with exact keywords, although its unlikely to match when there is no space
-    let body = search_body_builder(Some(app_name_exact), Some(vec!["name".to_string()]), None);
+    let body = search_body_builder(&Some(app_name_exact), &Some(vec!["name".to_string()]), &None);
 
-    let resp = client.search_index(APPLICATION_LIST_NAME, &body, None, Some(1)).await.unwrap();
+    let resp = client.search_index(APPLICATION_LIST_NAME, &body, &None, &Some(1)).await.unwrap();
     let resp_json = resp.json::<Value>().await.unwrap();
     println!("{:#?}", resp_json);
     

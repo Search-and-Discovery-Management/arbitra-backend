@@ -84,8 +84,8 @@ pub async fn get_application_list(data: web::Path<SearchApp>, client: Data::<ECl
     //     "fields": ["name", "indexes"]
     // });
 
-    let body = search_body_builder(data.app_name.clone(), None, Some("_id,name,indexes".to_string()));
-    let json_resp = client.search_index(APPLICATION_LIST_NAME, &body, None, None).await.unwrap().json::<Value>().await.unwrap();
+    let body = search_body_builder(&data.app_name.clone(), &None, &Some("_id,name,indexes".to_string()));
+    let json_resp = client.search_index(APPLICATION_LIST_NAME, &body, &None, &None).await.unwrap().json::<Value>().await.unwrap();
     HttpResponse::Ok().json(json!(
         json_resp["hits"]["hits"]
     ))
@@ -101,7 +101,7 @@ pub async fn get_application(data: web::Path<GetApp>, client: Data::<EClientTest
     if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
 
     // let dat = data.into_inner();
-    let resp = get_document(APPLICATION_LIST_NAME, &data.app_id, Some("_id,name,indexes".to_string()), &client).await;
+    let resp = get_document(APPLICATION_LIST_NAME, &data.app_id, &Some("_id,name,indexes".to_string()), &client).await;
 
     match resp {
         Ok((code, value)) => HttpResponse::build(code).json(value),

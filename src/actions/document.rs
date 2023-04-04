@@ -39,7 +39,7 @@ impl EClientTesting {
             .await
     }
     /// Finds document in index
-    pub async fn search_index(&self, index: &str, body: &Value, from: Option<i64>, count: Option<i64>) -> Result<Response, Error>{
+    pub async fn search_index(&self, index: &str, body: &Value, from: &Option<i64>, count: &Option<i64>) -> Result<Response, Error>{
 
         let from = from.unwrap_or(0);
         let count = count.unwrap_or(20);
@@ -54,9 +54,9 @@ impl EClientTesting {
     }
 
     /// Returns a single document
-    pub async fn get_document(&self, index: &str, doc_id: &str, retrieve_fields: Option<String>) -> Result<Response, Error>{
+    pub async fn get_document(&self, index: &str, doc_id: &str, retrieve_fields: &Option<String>) -> Result<Response, Error>{
         
-        let fields_to_return = retrieve_fields.unwrap_or("*".to_string());
+        let fields_to_return = retrieve_fields.as_deref().unwrap_or("*");
         // let resp = client.elastic
         //     .get(GetParts::IndexId(index, document_id))
         //     .send()
@@ -65,7 +65,7 @@ impl EClientTesting {
 
         self.elastic
             .get_source(GetSourceParts::IndexId(index, doc_id))
-            ._source_includes(&[&fields_to_return])
+            ._source_includes(&[fields_to_return])
             .send()
             .await
     }

@@ -2,7 +2,7 @@ use actix_web::{web::{self, Data}, HttpResponse};
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, search_body_builder, index_exists}, errors::ErrorTypes}};
-use super::{document_struct::{DocumentCreate, GetDocumentSearchIndex, GetDocumentSearchQuery, DocumentSearch, DocumentUpdate, DocumentDelete, DocById, ReturnFields}, libs::{check_server_up_exists_app_index}};
+use super::{document_struct::{DocumentCreate, GetDocumentSearchIndex, GetDocumentSearchQuery, DocumentSearch, DocumentUpdate, DocumentDelete, DocById, ReturnFields}, libs::{check_server_up_exists_app_index, document_search}};
 
 /// Document interfaces with index that is stored within the application id
 /// Inserting a document with a new field syncs the fields with all other shards
@@ -87,7 +87,7 @@ pub async fn get_document(data: web::Path<DocById>, query: web::Path<ReturnField
 
     let name = &index_name_builder(&data.app_id, &idx);
 
-    let resp = client.get_document(name, &data.document_id, query.return_fields.to_owned()).await.unwrap();
+    let resp = client.get_document(name, &data.document_id, &query.return_fields).await.unwrap();
 
     let status_code = resp.status_code();
     
@@ -99,13 +99,18 @@ pub async fn get_document(data: web::Path<DocById>, query: web::Path<ReturnField
         return HttpResponse::build(status_code).json(json!({"error": error}));
     }
 
+    let convert_time = std::time::Instant::now();
     let json_resp = resp.json::<Value>().await.unwrap();
+    println!("{:#?}", convert_time.elapsed().as_millis());
 
     HttpResponse::build(status_code).json(json_resp)
 }
 
-/// Returns a list of documents from index, post method
+/// A Post method for search, also returns a list of documents from index if no query is given
 pub async fn post_search(data: web::Json<DocumentSearch>, client: Data::<EClientTesting>) -> HttpResponse {
+
+    let total_time_taken = std::time::Instant::now();
+
 
     let idx = data.index.trim().to_ascii_lowercase();
     match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
@@ -113,51 +118,37 @@ pub async fn post_search(data: web::Json<DocumentSearch>, client: Data::<EClient
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
     
-    let name = index_name_builder(&data.app_id, &idx);
-    
     // TODO: Default search_in into a type of searchableAttributes which defaults its search to all fields with searchableAttributes when nothing is supplied 
     let fields_to_search = data.search_in.to_owned().map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
 
-    let wildcards = data.wildcards.unwrap_or(false);
-
-    let term = if data.search_term.is_some() && wildcards{
+    let term = if data.search_term.is_some() && data.wildcards.unwrap_or(false){
         let mut z = data.search_term.clone().unwrap().trim().to_string().replace(' ', "* ");
         z.push('*');
         Some(z)
     } else {
         data.search_term.clone()
     };
-    println!("{:#?}", term);
 
-    let body = search_body_builder(term, fields_to_search, data.return_fields.to_owned());
+    let body = search_body_builder(&term, &fields_to_search, &data.return_fields);
 
-    let resp = client.search_index(&name, &body, data.from.to_owned(), data.count.to_owned()).await.unwrap();
-
-    let status = resp.status_code();
-
-    if !status.is_success() {
-        let error = match status {
-            StatusCode::NOT_FOUND => ErrorTypes::IndexNotFound(data.index.to_owned()).to_string(),
-            StatusCode::BAD_REQUEST => ErrorTypes::BadDataRequest.to_string(),
-            _ => ErrorTypes::Unknown.to_string()
-        };
-
-        return HttpResponse::build(status).json(json!({"error": error}));
-    };
-
-    let json_resp = resp.json::<Value>().await.unwrap();
-    // println!("{:#?}", json_resp);
-    HttpResponse::build(status).json(json!({
-        "took": json_resp["took"],
-        "data": json_resp["hits"]["hits"],
-        "total_data": json_resp["hits"]["total"]["value"],
-        "match_type": json_resp["hits"]["total"]["relation"]
-    }))
+    match document_search(&data.app_id, &idx, &body, &data.from, &data.count, &client).await {
+        Ok((status, json_resp)) => {
+            HttpResponse::build(status).json(json!({
+                "search_took": &json_resp["took"],
+                "total_took": &total_time_taken.elapsed().as_millis(),
+                "data": &json_resp["hits"]["hits"],
+                "total_data": &json_resp["hits"]["total"]["value"],
+                "match_type": &json_resp["hits"]["total"]["relation"]
+            }))
+        },
+        Err(err) => err,
+    }
 }
 
-/// Returns a list of documents from index
+/// A Get method for search, also returns a list of documents from index if no query is given
 pub async fn search(data: web::Path<GetDocumentSearchIndex>, query: web::Query<GetDocumentSearchQuery>, client: Data::<EClientTesting>) -> HttpResponse {
-    // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
+
+    let total_time_taken = std::time::Instant::now();
 
     let idx = data.index.trim().to_ascii_lowercase();
 
@@ -165,42 +156,31 @@ pub async fn search(data: web::Path<GetDocumentSearchIndex>, query: web::Query<G
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
-
-    let name = index_name_builder(&data.app_id, &idx);
     
     let fields_to_search = query.search_in.to_owned().map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
-    // let fields_to_search: Option<Vec<String>>;
-    // if query.search_in.is_some(){
-    // } else {
-    //     fields_to_search = Some(get_mapping_keys(&name, &client).await)
-    // }
 
-
-    let body = search_body_builder(query.search_term.to_owned(), fields_to_search, query.return_fields.to_owned());
-
-    let resp = client.search_index(&name, &body, query.from, query.count).await.unwrap();
-
-    let status = resp.status_code();
-
-    if !status.is_success() {
-        let error = match status {
-            StatusCode::NOT_FOUND => ErrorTypes::IndexNotFound(data.index.to_owned()).to_string(),
-            StatusCode::BAD_REQUEST => ErrorTypes::BadDataRequest.to_string(),
-            _ => ErrorTypes::Unknown.to_string()
-        };
-
-        return HttpResponse::build(status).json(json!({"error": error}));
+    let term = if query.search_term.is_some() && query.wildcards.unwrap_or(false){
+        let mut z = query.search_term.as_deref().unwrap().trim().to_string().replace(' ', "* ");
+        z.push('*');
+        Some(z)
+    } else {
+        query.search_term.clone()
     };
 
-    let json_resp = resp.json::<Value>().await.unwrap();
+    let body = search_body_builder(&term, &fields_to_search, &query.return_fields);
 
-    // HttpResponse::build(status).json(json_resp)
-    HttpResponse::build(status).json(json!({
-        "took": json_resp["took"],
-        "data": json_resp["hits"]["hits"],
-        "total_data": json_resp["hits"]["total"]["value"],
-        "match_type": json_resp["hits"]["total"]["relation"]
-    }))
+    match document_search(&data.app_id, &idx, &body, &query.from, &query.count, &client).await {
+        Ok((status, json_resp)) => {
+            HttpResponse::build(status).json(json!({
+                "search_took": &json_resp["took"],
+                "total_took": &total_time_taken.elapsed().as_millis(),
+                "data": &json_resp["hits"]["hits"],
+                "total_data": &json_resp["hits"]["total"]["value"],
+                "match_type": &json_resp["hits"]["total"]["relation"]
+            }))
+        },
+        Err(x) => return x,
+    }
 }
 
 pub async fn update_document(data: web::Json<DocumentUpdate>, client: Data::<EClientTesting>) -> HttpResponse {  

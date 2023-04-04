@@ -2,9 +2,9 @@ use actix_web::{HttpResponse, web::{Data, self}};
 // use futures::future::join_all;
 use reqwest::StatusCode;
 use serde::Deserialize;
-use serde_json::{Value};
+use serde_json::{Value, json};
 
-use crate::{actions::EClientTesting, handlers::libs::{index_name_builder}};
+use crate::{actions::EClientTesting, handlers::libs::{index_name_builder, get_app_indexes_list}, APPLICATION_LIST_NAME};
 
 #[derive(Deserialize)]
 pub struct TestDataInsert {
@@ -15,7 +15,6 @@ pub struct TestDataInsert {
     pub link: Option<String>
 }
 
-// TODO: Convert to bulk
 pub async fn test_data(data: web::Json<TestDataInsert>, client: Data::<EClientTesting>) -> HttpResponse{
     // const INDEX: &str = "airplanes_v3";
 
@@ -37,21 +36,21 @@ pub async fn test_data(data: web::Json<TestDataInsert>, client: Data::<EClientTe
     //     .send()
     //     .await;
 
-    // let resp = get_app_indexes_list(&data.app_id, &client).await;
-    // match resp {
-    //     Ok(mut list) => {
-    //         list.push(idx.clone());
-    //         list.sort();
-    //         list.dedup();
-    //         let body = json!({
-    //             "doc": {
-    //                 "indexes": list
-    //             }
-    //         });
-    //         let _ = client.update_document(APPLICATION_LIST_NAME, &data.app_id, &body).await;
-    //     },
-    //     Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
-    // }
+    let resp = get_app_indexes_list(&data.app_id, &client).await;
+    match resp {
+        Ok(mut list) => {
+            list.push(idx.clone());
+            list.sort();
+            list.dedup();
+            let body = json!({
+                "doc": {
+                    "indexes": list
+                }
+            });
+            let _ = client.update_document(APPLICATION_LIST_NAME, &data.app_id, &body).await;
+        },
+        Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
+    }
     
     // If dynamic mode has value, set to whatever is inputted
     // let body = json!({
