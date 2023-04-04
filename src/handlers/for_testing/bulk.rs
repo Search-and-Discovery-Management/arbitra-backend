@@ -10,7 +10,7 @@ pub struct CreateBulkDocuments{
     pub app_id: String,
     pub index: String,
     pub data: Vec<Value>,
-    pub dynamic_mode: String
+    pub dynamic_mode: Option<String>
 }
 
 /// TODO: Turn into an actually usable function
@@ -24,12 +24,14 @@ pub async fn testing_create_bulk_documents(data: web::Json<CreateBulkDocuments>,
 
     // create_or_exists_index(Some(data.app_id.to_string()), &data.index, None, None, &client).await;
 
-    match check_server_up_exists_app_index(&data.app_id, &data.index, &client).await{
+    let idx = data.index.clone().trim().to_ascii_lowercase();
+
+    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
 
-    let name = index_name_builder(&data.app_id, &data.index);
+    let name = index_name_builder(&data.app_id, &idx);
 
     let resp = client.bulk_create_documents(&name, &data.data).await.unwrap();
 

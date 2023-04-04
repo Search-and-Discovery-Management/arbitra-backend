@@ -48,13 +48,17 @@ pub async fn document_search(app_id: &str, index: &str, body: &Value, from: &Opt
         return Err(HttpResponse::build(status).json(json!({"error": error})));
     };
 
-    let receive_and_convert = std::time::Instant::now();
+    let receive = std::time::Instant::now();
     // This takes a while to get a response on large "count" value, perhaps there is a better way?
     // Benchmarking with returning 10000 (worst case) of movie_records yields 500ms to 600ms on release mode, 1300ms to 1400ms on debug mode
     // 1. This takes in the body response because the connection is still active
     // 2. This parses the input into json
-    let json_resp = resp.json::<Value>().await.unwrap();
-    println!("Body Response elapsed {:#?}ms", receive_and_convert.elapsed().as_millis());
+    let text_resp = resp.text().await.unwrap();
+    println!("Body Response elapsed {:#?}ms", receive.elapsed().as_millis());
+
+    let convert = std::time::Instant::now();
+    let json_resp = serde_json::from_str(&text_resp).unwrap();
+    println!("Conversion elapsed {:#?}ms", convert.elapsed().as_millis());
 
     Ok((status, json_resp))
 }
