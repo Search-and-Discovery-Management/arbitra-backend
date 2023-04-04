@@ -119,7 +119,7 @@ pub async fn post_search(data: web::Json<DocumentSearch>, client: Data::<EClient
     };
     
     // TODO: Default search_in into a type of searchableAttributes which defaults its search to all fields with searchableAttributes when nothing is supplied 
-    let fields_to_search = data.search_in.to_owned().map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
+    let fields_to_search = data.search_in.to_owned().map(|val| val.split(',').map(|x| x.trim().to_string()).collect());
 
     let term = if data.search_term.is_some() && data.wildcards.unwrap_or(false){
         let mut z = data.search_term.clone().unwrap().trim().to_string().replace(' ', "* ");
@@ -157,7 +157,7 @@ pub async fn search(data: web::Path<GetDocumentSearchIndex>, query: web::Query<G
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
     
-    let fields_to_search = query.search_in.to_owned().map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
+    let fields_to_search = query.search_in.to_owned().map(|val| val.split(',').map(|x| x.trim().to_string()).collect());
 
     let term = if query.search_term.is_some() && query.wildcards.unwrap_or(false){
         let mut z = query.search_term.as_deref().unwrap().trim().to_string().replace(' ', "* ");
@@ -179,7 +179,7 @@ pub async fn search(data: web::Path<GetDocumentSearchIndex>, query: web::Query<G
                 "match_type": &json_resp["hits"]["total"]["relation"]
             }))
         },
-        Err(x) => return x,
+        Err(x) => x,
     }
 }
 

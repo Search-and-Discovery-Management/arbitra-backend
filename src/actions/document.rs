@@ -43,12 +43,15 @@ impl EClientTesting {
 
         let from = from.unwrap_or(0);
         let count = count.unwrap_or(20);
+        // let header = HeaderName::from_static("accept-encoding");
+        // let value = HeaderValue::from_str("gzip, deflate, br").unwrap();
 
         self.elastic
             .search(SearchParts::Index(&[index]))
             .from(from)
             .size(count)
             .body(body)
+            // .header(header, value)
             .send()
             .await
     }

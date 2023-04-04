@@ -25,7 +25,7 @@ pub async fn create_index(data: web::Json<IndexCreate>, client: Data::<EClientTe
 
     let idx = data.index.trim().to_ascii_lowercase().replace(' ', "_");
 
-    return match index_exists(&data.app_id, &idx, &client).await {
+    match index_exists(&data.app_id, &idx, &client).await {
         // If exists, return, else, create index
         Ok(_) => HttpResponse::Conflict().json(json!({"error": ErrorTypes::IndexExists(idx).to_string()})),
         Err((status, error, mut list)) => match error {
@@ -48,7 +48,7 @@ pub async fn create_index(data: web::Json<IndexCreate>, client: Data::<EClientTe
             },
             _ => HttpResponse::build(status).json(json!({"error": ErrorTypes::Unknown.to_string()}))
         }
-    };
+    }
 }
 
 pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<OptionalIndex>, client: Data::<EClientTesting>) -> HttpResponse {  
@@ -165,7 +165,7 @@ pub async fn delete_index(data: web::Path<RequiredIndex>, client: Data::<EClient
         }
     }
 
-    return match index_exists(app_id, &index, &client).await {
+    match index_exists(app_id, &index, &client).await {
         // If app and index exists
         Ok((needle, mut list)) => {
             list.remove(needle);

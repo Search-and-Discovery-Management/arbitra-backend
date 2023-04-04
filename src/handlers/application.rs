@@ -151,7 +151,6 @@ pub async fn delete_application(data: web::Path<DeleteApp>, client: Data::<EClie
 
     let resp = client.delete_document(APPLICATION_LIST_NAME, &data.app_id).await.unwrap();
     
-    // let _ = client.delete_index(&index_name_builder(&data.app_id, "*"));
 
     HttpResponse::build(resp.status_code()).finish()
 }
