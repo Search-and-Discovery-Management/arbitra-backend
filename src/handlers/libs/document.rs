@@ -121,7 +121,7 @@ pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<
                             "query": term,
                             "type": "cross_fields",
                             "fields": fields_to_search,
-                            "minimum_should_match": 75
+                            "minimum_should_match": "75%"
                         }
                     }
                 })
