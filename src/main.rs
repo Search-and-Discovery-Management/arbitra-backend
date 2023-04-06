@@ -11,7 +11,7 @@ use actix_web::{web::{self, Data}, App, HttpServer};
 // use futures::future::join_all;
 use handlers::{application::{initialize_new_app_id, get_application_list, get_application, delete_application, update_application}, for_testing::{create_test_data::test_data, bulk::testing_create_bulk_documents}};
 use handlers::document::{create_document, post_search, search, update_document, delete_document, get_document};
-use handlers::for_testing::get_keys::test_get_keys;
+// use handlers::for_testing::get_keys::test_get_keys;
 use handlers::index::{get_index, create_index, update_mappings, get_mappings, delete_index};
 // use handlers::libs::is_server_up;
 // use serde::Deserialize;
@@ -66,9 +66,9 @@ async fn main() -> std::io::Result<()> {
         
                 .service(
                     web::scope("/another_test")
-                    .route("/get_keys", web::get().to(test_get_keys))
-                    .route("/test_data", web::post().to(test_data))
-                    .route("/bulk_add_data", web::post().to(testing_create_bulk_documents))
+                    // .route("/get_keys", web::get().to(test_get_keys))
+                    .route("/test_data/{app_id}", web::post().to(test_data))
+                    .route("/bulk_add_data/{app_id}/{index}", web::post().to(testing_create_bulk_documents))
                 )
         )
         })

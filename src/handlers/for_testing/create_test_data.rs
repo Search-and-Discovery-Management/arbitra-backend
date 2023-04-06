@@ -4,18 +4,17 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::{actions::EClientTesting, handlers::libs::{index_name_builder, get_app_indexes_list}, APPLICATION_LIST_NAME};
+use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, get_app_indexes_list}, index_struct::RequiredAppID}, APPLICATION_LIST_NAME};
 
 #[derive(Deserialize)]
 pub struct TestDataInsert {
-    pub app_id: String,
     pub index: Option<String>,
     pub shards: Option<usize>,
     pub replicas: Option<usize>,
     pub link: Option<String>
 }
 
-pub async fn test_data(data: web::Json<TestDataInsert>, client: Data::<EClientTesting>) -> HttpResponse{
+pub async fn test_data(app: web::Path<RequiredAppID>, data: web::Json<TestDataInsert>, client: Data::<EClientTesting>) -> HttpResponse{
     // const INDEX: &str = "airplanes_v3";
 
     let idx = data.index.clone().unwrap_or("airplanes_v3".to_string());
@@ -28,7 +27,7 @@ pub async fn test_data(data: web::Json<TestDataInsert>, client: Data::<EClientTe
 
     // tokio::time::sleep(Duration::from_secs(5));
 
-    let name = index_name_builder(&data.app_id, &idx);
+    let name = index_name_builder(&app.app_id, &idx);
 
     // No question mark for await, https://github.com/actix/actix-web/wiki/FAQ
     // let resp = reqwest::Client::new()
@@ -36,7 +35,7 @@ pub async fn test_data(data: web::Json<TestDataInsert>, client: Data::<EClientTe
     //     .send()
     //     .await;
 
-    let resp = get_app_indexes_list(&data.app_id, &client).await;
+    let resp = get_app_indexes_list(&app.app_id, &client).await;
     match resp {
         Ok(mut list) => {
             list.push(idx.clone());
@@ -47,7 +46,7 @@ pub async fn test_data(data: web::Json<TestDataInsert>, client: Data::<EClientTe
                     "indexes": list
                 }
             });
-            let _ = client.update_document(APPLICATION_LIST_NAME, &data.app_id, &body).await;
+            let _ = client.update_document(APPLICATION_LIST_NAME, &app.app_id, &body).await;
         },
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }

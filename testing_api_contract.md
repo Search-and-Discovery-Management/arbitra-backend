@@ -1,18 +1,19 @@
 # Testing Routes
 
-## POST /api/another_test/test_data
+## POST /api/another_test/test_data/:app_id
 ----
     Inserts a test index into an application from the given link
 
 * **URL Params**
 
-    None
+    **Required:**
+
+    `app_id=[string]`
 
 * **Data Params**
 
     ```
     {
-        "app_id": <app_id>
         "index": <index_name>, (Optional)
         "shards": int, (Optional)
         "replicas": int, (Optional)
@@ -53,14 +54,16 @@
 
 * **URL Params**
 
-    None
+    **Required:**
+
+    `app_id=[string]`
+
+    `index=[string]`
 
 * **Data Params**
 
     ```
     {
-        <!-- "app_id": <app_id> -->
-        "index": <index_name>, (Optional)
         "data": [
             <data_object>, 
             <data_object>, 

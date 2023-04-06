@@ -260,7 +260,9 @@
 
 * **URL Params**
 
-    None
+    **Required:**
+
+    `app_id=[string]`
 
 * **Data Params**
 
@@ -611,7 +613,11 @@
 
 * **URL Params**
 
-    None
+    **Required:**
+
+    `app_id=[string]`
+
+    `index=[string]`
 
 * **Data Params**
 
