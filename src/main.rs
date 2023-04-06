@@ -51,13 +51,13 @@ async fn main() -> std::io::Result<()> {
                 .route("/app", web::put().to(update_application))   
                 .route("/app/{app_id}", web::delete().to(delete_application))
                 
-                .route("/index", web::post().to(create_index))
+                .route("/index/{app_id}", web::post().to(create_index))
                 .route("/index/{app_id}", web::get().to(get_index))
                 .route("/index/mappings/{app_id}/{index}", web::get().to(get_mappings))
                 .route("/index/mappings", web::put().to(update_mappings))
                 .route("/index/{app_id}/{index}", web::delete().to(delete_index))
         
-                .route("/document", web::post().to(create_document))
+                .route("/document/{app_id}/{index}", web::post().to(create_document))
                 .route("/document/{app_id}/{index}/{document_id}", web::get().to(get_document))
                 .route("/search", web::post().to(post_search))
                 .route("/search/{app_id}/{index}", web::get().to(search))

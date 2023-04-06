@@ -13,7 +13,7 @@ use super::{index_struct::*, errors::*, libs::{index::index_exists, create_or_ex
 /// Index interfaces with application_id
 /// Creating a new index accesses application_list which finds application_id of that specific index, then adds a new index to the id's list
 /// TODO: Do not allow index name with space, dots, etc and allow only alphabets, numbers, and underscores
-pub async fn create_index(data: web::Json<IndexCreate>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCreate>, client: Data::<EClientTesting>) -> HttpResponse {  
 
     if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})); };
 
@@ -25,7 +25,7 @@ pub async fn create_index(data: web::Json<IndexCreate>, client: Data::<EClientTe
 
     let idx = data.index.trim().to_ascii_lowercase().replace(' ', "_");
 
-    match index_exists(&data.app_id, &idx, &client).await {
+    match index_exists(&app.app_id, &idx, &client).await {
         // If exists, return, else, create index
         Ok(_) => HttpResponse::Conflict().json(json!({"error": ErrorTypes::IndexExists(idx).to_string()})),
         Err((status, error, mut list)) => match error {
@@ -40,9 +40,9 @@ pub async fn create_index(data: web::Json<IndexCreate>, client: Data::<EClientTe
                     }
                 });
                 // TODO: Adding new index creates 10 shards -> lib function? -- DELAYED
-                let _ = client.update_document(APPLICATION_LIST_NAME, &data.app_id, &body).await;
+                let _ = client.update_document(APPLICATION_LIST_NAME, &app.app_id, &body).await;
 
-                let _ = create_or_exists_index(Some(data.app_id.to_string()), &idx, data.shards, data.replicas, &client).await.to_string();
+                let _ = create_or_exists_index(Some(app.app_id.to_string()), &idx, data.shards, data.replicas, &client).await.to_string();
 
                 HttpResponse::Created().finish()
             },

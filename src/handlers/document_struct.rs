@@ -12,7 +12,8 @@ pub struct DocumentSearch {
     pub return_fields: Option<String>,
     pub from: Option<i64>,
     pub count: Option<i64>,
-    pub wildcards: Option<bool>
+    pub wildcards: Option<bool>,
+    // pub min_percentage_match: Option<i64>
 }
 
 /// Used for Get: Search
@@ -30,7 +31,8 @@ pub struct GetDocumentSearchQuery {
     pub return_fields: Option<String>,
     pub from: Option<i64>,
     pub count: Option<i64>,
-    pub wildcards: Option<bool>
+    pub wildcards: Option<bool>,
+    // pub min_percentage_match: Option<i64>
 }
 
 /// Used for Get: Document
@@ -51,10 +53,12 @@ pub struct ReturnFields{
 #[derive(Deserialize)]
 pub struct DocumentCreate{
     pub app_id: String,
-    pub index: String,
-    pub data: Value,
-    pub dynamic_mode: Option<String>
+    pub index: String
+    // pub data: Value,
+    // pub dynamic_mode: Option<String>
 }
+
+
 
 /// Used for Post: Document_multiple -- UNUSED
 // #[derive(Deserialize)]

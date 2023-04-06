@@ -254,7 +254,7 @@
         }
         ```
 
-## POST /api/index
+## POST /api/index/:app_id
 ----
     Creates a new dynamic index
 
@@ -266,7 +266,6 @@
 
     ```
     {
-        "app_id": <app_id>,
         "index": string
     }
     ```
@@ -606,7 +605,7 @@
         }
         ```
 
-## POST /api/document
+## POST /api/document/:app_id/:index
 ----
     Creates a new document
 
@@ -618,10 +617,7 @@
 
     ```
     {
-        "app_id": <app_id>,
-        "index": <index_name>,
-        "dynamic_mode": <modes: "true", "false", "strict">, (Optional)
-        "data": <json_object>
+        <JSON Document>
     }
     ```
 * **Headers**

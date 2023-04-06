@@ -4,7 +4,6 @@ use serde_json::Value;
 /// Used for Post: Index
 #[derive(Deserialize)]
 pub struct IndexCreate{
-    pub app_id: String,
     pub index: String,
     pub shards: Option<usize>,
     pub replicas: Option<usize>

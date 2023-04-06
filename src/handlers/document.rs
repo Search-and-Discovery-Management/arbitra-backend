@@ -10,10 +10,10 @@ use super::{document_struct::{DocumentCreate, GetDocumentSearchIndex, GetDocumen
 /// All operations requires app_id and the index name
 /// 
 
-pub async fn create_document(data: web::Json<DocumentCreate>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn create_document(app_index: web::Path<DocumentCreate>, data: web::Json<Value>, client: Data::<EClientTesting>) -> HttpResponse {  
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
-    let idx = data.index.trim().to_ascii_lowercase();
-    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
+    let idx = app_index.index.trim().to_ascii_lowercase();
+    match check_server_up_exists_app_index(&app_index.app_id, &idx, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
@@ -31,34 +31,34 @@ pub async fn create_document(data: web::Json<DocumentCreate>, client: Data::<ECl
     // Checks if index exists
     // Insert
 
-    match index_exists(&data.app_id, &idx, &client).await {
+    match index_exists(&app_index.app_id, &idx, &client).await {
         Ok(_) => (),
         Err((status, err, _)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
     
-    let name = index_name_builder(&data.app_id, &idx);
-    println!("{:#?}", name);
+    let name = index_name_builder(&app_index.app_id, &idx);
+    // println!("{:#?}", name);
 
-    let dat = &data.data;
-    let dynamic_mode = &data.dynamic_mode;
+    // let dat = &data.data;
+    // let dynamic_mode = &data.dynamic_mode;
     
     // If dynamic mode has value, set to whatever is inputted
-    if dynamic_mode.is_some() {
-        let body = json!({
-            "dynamic": dynamic_mode.as_ref().unwrap()
-        });
-        let _ = client.update_index_mappings(&name, &body).await;
-    }
+    // if dynamic_mode.is_some() {
+    //     let body = json!({
+    //         "dynamic": dynamic_mode.as_ref().unwrap()
+    //     });
+    //     let _ = client.update_index_mappings(&name, &body).await;
+    // }
     
-    let resp = client.insert_document(&name, dat).await.unwrap();
+    let resp = client.insert_document(&name, &data).await.unwrap();
 
     // If dynamic mode doesnt have any value, change it back to strict mode
-    if dynamic_mode.is_none() {
-        let body = json!({
-            "dynamic": "strict"
-        });
-        let _ = client.update_index_mappings(&name, &body).await;
-    }
+    // if dynamic_mode.is_none() {
+    //     let body = json!({
+    //         "dynamic": "strict"
+    //     });
+    //     let _ = client.update_index_mappings(&name, &body).await;
+    // }
     
     let status = resp.status_code();
 
@@ -128,7 +128,6 @@ pub async fn post_search(data: web::Json<DocumentSearch>, client: Data::<EClient
     } else {
         data.search_term.clone()
     };
-
     let body = search_body_builder(&term, &fields_to_search, &data.return_fields);
 
     match document_search(&data.app_id, &idx, &body, &data.from, &data.count, &client).await {

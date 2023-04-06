@@ -63,8 +63,7 @@ pub async fn document_search(app_id: &str, index: &str, body: &Value, from: &Opt
     Ok((status, json_resp))
 }
 
-
-pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<String>>, retrieve_field: &Option<String>) -> Value{ // , fuzziness: Option<String>) -> Value{
+pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<String>>, retrieve_field: &Option<String>) -> Value { //, min_match: &Option<i64>) -> Value{ // , fuzziness: Option<String>) -> Value{
     // let fields_to_search: Option<Vec<String>> = search_in.map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
 
     // let fields_to_search = search_in.as_deref().unwrap_or(&vec!["*".to_string()]);
@@ -75,6 +74,7 @@ pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<
         None => vec!["*".to_string()],
     };
 
+    
     // Returns everything
     let mut body = json!({
         "_source": {
@@ -102,6 +102,16 @@ pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<
     //     })
     // } else {
         if let Some(term) = search_term {
+
+            // let mut percentage = min_match.unwrap_or(75);
+            // if percentage > 100 || percentage < -100 {
+            //     percentage = 75; // back to default
+            // }
+            // let percentage_min = format!("{percentage}%");
+
+            // let minimum_should_match = format!("{}%", min_match.unwrap_or(75));
+            // println!("{:#?}", percentage_min);
+            
             body = json!({
                 "_source": {
                     "includes": fields_to_return
@@ -111,7 +121,7 @@ pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<
                             "query": term,
                             "type": "cross_fields",
                             "fields": fields_to_search,
-                            "minimum_should_match": "75%"
+                            "minimum_should_match": 75
                         }
                     }
                 })
