@@ -453,20 +453,22 @@
 
     
 
-## POST /api/search
+## POST /api/search/:app_id/:index
 ----
     Searches an index for documents
 
 * **URL Params**
 
-    None
+    ***Required:*** 
+
+    `app_id=[string]`
+
+    `index=[string]`
 
 * **Data Params**
 
     ```
     {
-        "app_id": <app_id>
-        "index": <index_name>,
         "search_term": string, (Optional)
         "search_in": <fields, comma separated>, (Optional)
         "return_fields": <fields, comma separated>, (Optional)
@@ -669,16 +671,19 @@
 
 * **URL Params**
     
-    None
+    ***Required:***
+
+    `app_id=[string]`
+
+    `index=[string]`
+
+    `document_id=[string]`
 
 * **Data Params**
 
     ```
     {
-        "app_id": <app_id>,
-        "index": <index_name>,
-        "document_id": <index_id>,
-        "data": <json_object>
+        <json_object>
     }
     ```
 * **Headers**

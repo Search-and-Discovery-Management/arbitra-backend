@@ -3,7 +3,7 @@ use reqwest::StatusCode;
 // use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::{actions::EClientTesting, handlers::{libs::{check_server_up_exists_app_index, index_name_builder}, document_struct::DocumentCreate}};
+use crate::{actions::EClientTesting, handlers::{libs::{check_server_up_exists_app_index, index_name_builder}, index_struct::RequiredIndex}};
 
 // #[derive(Deserialize)]
 // pub struct CreateBulkDocuments{
@@ -20,7 +20,7 @@ use crate::{actions::EClientTesting, handlers::{libs::{check_server_up_exists_ap
 /// TODO: Loop and check what type of errors are being thrown, if there is only one, turn that into the status error, else use MULTI STATUS
 /// 
 /// Bulk Document Create Input, Only allows input into an existing index
-pub async fn testing_create_bulk_documents(app_index: web::Path<DocumentCreate>, data: web::Json<Vec<Value>>, client: Data::<EClientTesting>) -> HttpResponse {
+pub async fn testing_create_bulk_documents(app_index: web::Path<RequiredIndex>, data: web::Json<Vec<Value>>, client: Data::<EClientTesting>) -> HttpResponse {
 
     // create_or_exists_index(Some(data.app_id.to_string()), &data.index, None, None, &client).await;
 

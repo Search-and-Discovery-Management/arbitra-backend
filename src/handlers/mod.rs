@@ -7,3 +7,4 @@ pub mod document_struct;
 pub mod index_struct;
 pub mod applications_struct;
 pub mod for_testing;
+pub mod welcome;

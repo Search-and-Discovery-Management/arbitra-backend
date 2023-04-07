@@ -11,7 +11,7 @@ pub struct SearchApp{
 }
 
 #[derive(Deserialize)]
-pub struct GetApp{
+pub struct RequiredAppID{
     pub app_id: String
 }
 
@@ -19,9 +19,4 @@ pub struct GetApp{
 pub struct UpdateApp{
     pub app_id: String,
     pub app_name: String
-}
-
-#[derive(Deserialize)]
-pub struct DeleteApp{
-    pub app_id: String
 }

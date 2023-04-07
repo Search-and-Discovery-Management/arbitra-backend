@@ -4,7 +4,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, get_app_indexes_list}, index_struct::RequiredAppID}, APPLICATION_LIST_NAME};
+use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, get_app_indexes_list}, applications_struct::RequiredAppID}, APPLICATION_LIST_NAME};
 
 #[derive(Deserialize)]
 pub struct TestDataInsert {

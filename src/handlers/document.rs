@@ -2,7 +2,7 @@ use actix_web::{web::{self, Data}, HttpResponse};
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, search_body_builder, index_exists}, errors::ErrorTypes}};
-use super::{document_struct::{DocumentCreate, GetDocumentSearchIndex, GetDocumentSearchQuery, DocumentSearch, DocumentUpdate, DocumentDelete, DocById, ReturnFields}, libs::{check_server_up_exists_app_index, document_search}};
+use super::{document_struct::{DocumentSearchQuery, RequiredDocumentID, ReturnFields}, libs::{check_server_up_exists_app_index, document_search}, index_struct::RequiredIndex};
 
 /// Document interfaces with index that is stored within the application id
 /// Inserting a document with a new field syncs the fields with all other shards
@@ -10,7 +10,7 @@ use super::{document_struct::{DocumentCreate, GetDocumentSearchIndex, GetDocumen
 /// All operations requires app_id and the index name
 /// 
 
-pub async fn create_document(app_index: web::Path<DocumentCreate>, data: web::Json<Value>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn create_document(app_index: web::Path<RequiredIndex>, data: web::Json<Value>, client: Data::<EClientTesting>) -> HttpResponse {  
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     let idx = app_index.index.trim().to_ascii_lowercase();
     match check_server_up_exists_app_index(&app_index.app_id, &idx, &client).await{
@@ -73,7 +73,7 @@ pub async fn create_document(app_index: web::Path<DocumentCreate>, data: web::Js
     HttpResponse::build(status).finish()
 }
 
-pub async fn get_document(data: web::Path<DocById>, query: web::Path<ReturnFields>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn get_document(data: web::Path<RequiredDocumentID>, query: web::Path<ReturnFields>, client: Data::<EClientTesting>) -> HttpResponse {  
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     // App id, index name, and document id
     // This will retrieve the shard number appended on the id
@@ -107,13 +107,13 @@ pub async fn get_document(data: web::Path<DocById>, query: web::Path<ReturnField
 }
 
 /// A Post method for search, also returns a list of documents from index if no query is given
-pub async fn post_search(data: web::Json<DocumentSearch>, client: Data::<EClientTesting>) -> HttpResponse {
+pub async fn post_search(app_index: web::Path<RequiredIndex>, data: web::Json<DocumentSearchQuery>, client: Data::<EClientTesting>) -> HttpResponse {
 
     let total_time_taken = std::time::Instant::now();
 
 
-    let idx = data.index.trim().to_ascii_lowercase();
-    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
+    let idx = app_index.index.trim().to_ascii_lowercase();
+    match check_server_up_exists_app_index(&app_index.app_id, &idx, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
@@ -130,7 +130,7 @@ pub async fn post_search(data: web::Json<DocumentSearch>, client: Data::<EClient
     };
     let body = search_body_builder(&term, &fields_to_search, &data.return_fields);
 
-    match document_search(&data.app_id, &idx, &body, &data.from, &data.count, &client).await {
+    match document_search(&app_index.app_id, &idx, &body, &data.from, &data.count, &client).await {
         Ok((status, json_resp)) => {
             HttpResponse::build(status).json(json!({
                 "search_took": &json_resp["took"],
@@ -145,30 +145,30 @@ pub async fn post_search(data: web::Json<DocumentSearch>, client: Data::<EClient
 }
 
 /// A Get method for search, also returns a list of documents from index if no query is given
-pub async fn search(data: web::Path<GetDocumentSearchIndex>, query: web::Query<GetDocumentSearchQuery>, client: Data::<EClientTesting>) -> HttpResponse {
+pub async fn search(app_index: web::Path<RequiredIndex>, data: web::Query<DocumentSearchQuery>, client: Data::<EClientTesting>) -> HttpResponse {
 
     let total_time_taken = std::time::Instant::now();
 
-    let idx = data.index.trim().to_ascii_lowercase();
+    let idx = app_index.index.trim().to_ascii_lowercase();
 
-    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
+    match check_server_up_exists_app_index(&app_index.app_id, &idx, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
     
-    let fields_to_search = query.search_in.to_owned().map(|val| val.split(',').map(|x| x.trim().to_string()).collect());
+    let fields_to_search = data.search_in.to_owned().map(|val| val.split(',').map(|x| x.trim().to_string()).collect());
 
-    let term = if query.search_term.is_some() && query.wildcards.unwrap_or(false){
-        let mut z = query.search_term.as_deref().unwrap().trim().to_string().replace(' ', "* ");
+    let term = if data.search_term.is_some() && data.wildcards.unwrap_or(false){
+        let mut z = data.search_term.as_deref().unwrap().trim().to_string().replace(' ', "* ");
         z.push('*');
         Some(z)
     } else {
-        query.search_term.clone()
+        data.search_term.clone()
     };
 
-    let body = search_body_builder(&term, &fields_to_search, &query.return_fields);
+    let body = search_body_builder(&term, &fields_to_search, &data.return_fields);
 
-    match document_search(&data.app_id, &idx, &body, &query.from, &query.count, &client).await {
+    match document_search(&app_index.app_id, &idx, &body, &data.from, &data.count, &client).await {
         Ok((status, json_resp)) => {
             HttpResponse::build(status).json(json!({
                 "search_took": &json_resp["took"],
@@ -182,30 +182,30 @@ pub async fn search(data: web::Path<GetDocumentSearchIndex>, query: web::Query<G
     }
 }
 
-pub async fn update_document(data: web::Json<DocumentUpdate>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn update_document(app_index_doc: web::Path<RequiredDocumentID>, data: web::Json<Value>, client: Data::<EClientTesting>) -> HttpResponse {  
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     // Updates the documents in shard
 
-    let idx = data.index.trim().to_ascii_lowercase();
+    let idx = app_index_doc.index.trim().to_ascii_lowercase();
 
-    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
+    match check_server_up_exists_app_index(&app_index_doc.app_id, &idx, &client).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
     
-    let name = index_name_builder(&data.app_id, &idx);
+    let name = index_name_builder(&app_index_doc.app_id, &idx);
     
     let doc = json!({
-        "doc": &data.data
+        "doc": &data
     });
 
-    let resp = client.update_document(&name, &data.document_id, &doc).await.unwrap();
+    let resp = client.update_document(&name, &app_index_doc.document_id, &doc).await.unwrap();
     
     let status = resp.status_code();
     
     if !status.is_success() {
         let error = match status{
-            StatusCode::NOT_FOUND => ErrorTypes::DocumentNotFound(data.document_id.to_string()).to_string(),
+            StatusCode::NOT_FOUND => ErrorTypes::DocumentNotFound(app_index_doc.document_id.to_string()).to_string(),
             StatusCode::BAD_REQUEST => ErrorTypes::BadDataRequest.to_string(),
             _ => ErrorTypes::Unknown.to_string()
         };
@@ -215,7 +215,7 @@ pub async fn update_document(data: web::Json<DocumentUpdate>, client: Data::<ECl
     HttpResponse::build(status).finish()
 }
 
-pub async fn delete_document(data: web::Path<DocumentDelete>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn delete_document(data: web::Path<RequiredDocumentID>, client: Data::<EClientTesting>) -> HttpResponse {  
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     // Deletes the document in shard
 

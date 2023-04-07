@@ -9,12 +9,6 @@ pub struct IndexCreate{
     pub replicas: Option<usize>
 }
 
-
-#[derive(Deserialize)]
-pub struct RequiredAppID{
-    pub app_id: String
-}
-
 /// Used for Get: Index
 #[derive(Deserialize)]
 pub struct OptionalIndex{
@@ -36,9 +30,9 @@ pub struct IndexMappingUpdate {
     pub mappings: Value
 }
 
-/// Used for Delete: Index
-#[derive(Deserialize)]
-pub struct IndexDelete {
-    pub app_id: String,
-    pub index: String
-}
+// Used for Delete: Index
+// #[derive(Deserialize)]
+// pub struct IndexDelete {
+//     pub app_id: String,
+//     pub index: String
+// }

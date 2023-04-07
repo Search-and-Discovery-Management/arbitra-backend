@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 
 use crate::{actions::EClientTesting, APPLICATION_LIST_NAME};
 
-use super::{index_struct::*, errors::*, libs::{index::index_exists, create_or_exists_index, index_name_builder, is_server_up, check_server_up_exists_app_index}};
+use super::{index_struct::*, errors::*, libs::{index::index_exists, create_or_exists_index, index_name_builder, is_server_up, check_server_up_exists_app_index, get_app_indexes_list}, applications_struct::RequiredAppID};
 
 // Temp _ because models and routes having same name
 
@@ -85,6 +85,16 @@ pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<Optio
 
     let json_resp = idx.json::<Vec<Value>>().await.unwrap();
     HttpResponse::build(status).json(json_resp)
+}
+
+pub async fn get_app_list_of_indexes(app: web::Path<RequiredAppID>, client: Data::<EClientTesting>) -> HttpResponse {  
+
+    if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) };
+
+    match get_app_indexes_list(&app.app_id, &client).await {
+        Ok(list) => HttpResponse::Ok().json(json!(list)),
+        Err((status, err)) => HttpResponse::build(status).json(json!({"error": err.to_string()}))
+    }
 }
 
 pub async fn get_mappings(data: web::Path<RequiredIndex>, client: Data::<EClientTesting>) -> HttpResponse {
@@ -170,9 +180,13 @@ pub async fn delete_index(data: web::Path<RequiredIndex>, client: Data::<EClient
         Ok((needle, mut list)) => {
             list.remove(needle);
             let body = json!({
-                "indexes": list
+                "doc": {
+                    "indexes": list
+                }
             });
-            let _ = client.update_document(APPLICATION_LIST_NAME, app_id, &body).await;
+            // This doesnt remove the index from the list for some reason, even with the specified index removed
+            let x = client.update_document(APPLICATION_LIST_NAME, app_id, &body).await;
+            println!("{:#?}", x);
             HttpResponse::build(status).finish()
         },
         // If either doesnt exist

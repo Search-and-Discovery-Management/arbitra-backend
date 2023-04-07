@@ -92,7 +92,7 @@ pub async fn get_application_list(data: web::Path<SearchApp>, client: Data::<ECl
 }
 
 
-pub async fn get_application(data: web::Path<GetApp>, client: Data::<EClientTesting>) -> HttpResponse{
+pub async fn get_application(data: web::Path<RequiredAppID>, client: Data::<EClientTesting>) -> HttpResponse{
     // Search app id with /:app_id
     // If not exist, return 404
     // If there is, return application id, name, and indexes
@@ -131,7 +131,7 @@ pub async fn update_application(data: web::Json<UpdateApp>, client: Data::<EClie
 }
 
 // TODO: Untested: delete the indexes with app_id of app being deleted
-pub async fn delete_application(data: web::Path<DeleteApp>, client: Data::<EClientTesting>) -> HttpResponse{
+pub async fn delete_application(data: web::Path<RequiredAppID>, client: Data::<EClientTesting>) -> HttpResponse{
     // Deletes application inside application_list
     // If not exist, return 404 
     // If there is, 
