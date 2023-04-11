@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use crate::{actions::client::EClientTesting, handlers::errors::ErrorTypes, APPLICATION_LIST_NAME};
 
 use super::libs::{{create_or_exists_index, is_server_up, insert_new_app_name, search_body_builder, get_document, index_name_builder}, get_app_indexes_list};
-use super::applications_struct::*;
+use super::structs::applications_struct::*;
 
 /// Consists of
 /// An index with a list of application ids (formerly index)
@@ -15,31 +15,32 @@ use super::applications_struct::*;
 /// These contain the actual data, which were split to speed up searching
 
 /// layout:
-/// Need a way to get the list of application ids from serde json
-/*  {
-        "application_id_list": {
-            "application_id_1": {
-                "name": "app_1_name",
-                "index_list": ["1","2",...]
-            },
-            "application_id_2": {
-                "name": "app_2_name",
-                "index_list": ["1","2",...]
-            },
-            ...
+/*
+    application_list: [
+        "<app_id_1>": {
+            "name": [String],
+            "indexes": [Vec<String>]
         },
-        "application_id_1_nama_index_1_shard_1": [
-            "data_1": {},
-            "data_2": {},
-            "data_3": {},
-        ],
-        "application_id_1_nama_index_1_shard_2": ...
-    }
+        ...
+    ],
+    app_id_1.index_name_1: [
+        <data>,
+        <data>,
+        ...
+    ],
+    app_id_1.index_name_2: [
+        <data>,
+        <data>,
+        ...
+    ],
+    ...
 */
+
+
 
 // Since there must always be an application list, this will always create one if it doesnt exist
 
-pub async fn initialize_new_app_id(data: web::Json<NewApp>, client: Data::<EClientTesting>) -> HttpResponse{
+pub async fn initialize_new_app_id(data: web::Json<RequiredAppName>, client: Data::<EClientTesting>) -> HttpResponse{
     // If not exist, create a new index called Application_List containing the list of application ids
     // Generate unique id for each application ids
     // Add them to Application_List
@@ -66,7 +67,7 @@ pub async fn initialize_new_app_id(data: web::Json<NewApp>, client: Data::<EClie
     }
 }
 
-pub async fn get_application_list(data: web::Path<SearchApp>, client: Data::<EClientTesting>) -> HttpResponse{
+pub async fn get_application_list(data: web::Path<OptionalAppName>, client: Data::<EClientTesting>) -> HttpResponse{
 
     if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
     // If not exist, return an array of nothing

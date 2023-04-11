@@ -29,10 +29,3 @@ pub struct IndexMappingUpdate {
     pub index: String,
     pub mappings: Value
 }
-
-// Used for Delete: Index
-// #[derive(Deserialize)]
-// pub struct IndexDelete {
-//     pub app_id: String,
-//     pub index: String
-// }

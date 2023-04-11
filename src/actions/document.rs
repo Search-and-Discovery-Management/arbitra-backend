@@ -13,18 +13,7 @@ impl EClientTesting {
             .await
     }
 
-    /// Document bulk operation (create, update, delete)
-    /// Unused, Untested
-    // pub async fn bulk_documents(&self, index: &str, body: Vec<&BulkOperations>) -> Result<Response, Error>{
-    //     self.elastic
-    //         .bulk(elasticsearch::BulkParts::Index(index))
-    //         .body(body)
-    //         .send()
-    //         .await
-    // }
-
-    // Not properly working
-    pub async fn bulk_create_documents(&self, index: &str, data: &[Value]) -> Result<Response, Error> {
+    pub async fn bulk_index_documents(&self, index: &str, data: &[Value]) -> Result<Response, Error> {
         let body: Vec<BulkOperation<_>> = data
             .iter()
             .map(|p| {
@@ -38,6 +27,7 @@ impl EClientTesting {
             .send()
             .await
     }
+
     /// Finds document in index
     pub async fn search_index(&self, index: &str, body: &Value, from: &Option<i64>, count: &Option<i64>) -> Result<Response, Error>{
 
@@ -81,6 +71,23 @@ impl EClientTesting {
             .send()
             .await
     }
+
+    // Testing
+    pub async fn bulk_update_documents(&self, index: &str, id_name: &str, data: &[Value]) -> Result<Response, Error> {
+        let body: Vec<BulkOperation<_>> = data
+            .iter()
+            .map(|p| {
+                BulkOperation::update(p[id_name].to_string(), p).into()
+            })
+            .collect();
+
+        self.elastic
+            .bulk(BulkParts::Index(index))
+            .body(body)
+            .send()
+            .await
+    }
+
 
     /// Deletes document on an index
     pub async fn delete_document(&self, index: &str, document_id: &str) -> Result<Response, Error>{

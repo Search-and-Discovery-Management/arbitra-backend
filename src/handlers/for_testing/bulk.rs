@@ -1,33 +1,12 @@
-use actix_web::{HttpResponse, web::{self, Data}};
-use reqwest::StatusCode;
-// use serde::Deserialize;
+use actix_web::{web::{self, Data}, HttpResponse};
+use client::EClientTesting;
 use serde_json::{Value, json};
 
-use crate::{actions::EClientTesting, handlers::{libs::{check_server_up_exists_app_index, index_name_builder}, index_struct::RequiredIndex}};
+use crate::{handlers::{libs::{check_server_up_exists_app_index, index_name_builder}, structs::index_struct::RequiredIndex, structs::document_struct::BulkFailures}, actions::client};
 
-// #[derive(Deserialize)]
-// pub struct CreateBulkDocuments{
-//     pub app_id: String,
-//     pub index: String,
-//     pub data: Vec<Value>,
-//     // pub dynamic_mode: Option<String>
-// }
-
-/// TODO: Turn into an actually usable function
-/// 
-/// ? Return the errors? or only the count of errors?
-/// 
-/// TODO: Loop and check what type of errors are being thrown, if there is only one, turn that into the status error, else use MULTI STATUS
-/// 
-/// Bulk Document Create Input, Only allows input into an existing index
-pub async fn testing_create_bulk_documents(app_index: web::Path<RequiredIndex>, data: web::Json<Vec<Value>>, client: Data::<EClientTesting>) -> HttpResponse {
-
-    // create_or_exists_index(Some(data.app_id.to_string()), &data.index, None, None, &client).await;
-
+// TODO: Preprocess input data to extract the id
+pub async fn update_bulk_documents(app_index: web::Path<RequiredIndex>, data: web::Json<Vec<Value>>, client: Data<EClientTesting>) -> HttpResponse {
     let idx = app_index.index.clone().trim().to_ascii_lowercase();
-
-    // let test = json!(vec!["test"]);
-
 
     match check_server_up_exists_app_index(&app_index.app_id, &idx, &client).await{
         Ok(_) => (),
@@ -36,26 +15,29 @@ pub async fn testing_create_bulk_documents(app_index: web::Path<RequiredIndex>, 
 
     let name = index_name_builder(&app_index.app_id, &idx);
 
-    let resp = client.bulk_create_documents(&name, &data).await.unwrap();
+    let resp = client.bulk_update_documents(&name, "_id",&data).await.unwrap();
 
     let status = resp.status_code();
     let json: Value = resp.json::<Value>().await.unwrap();
 
+    let mut failures: Vec<BulkFailures> = vec![];
     if json["errors"].as_bool().unwrap() {
-        let failed: Vec<&Value> = json["items"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .filter(|v| !v["error"].is_null())
-            .collect();
-
-        println!("Errors whilst indexing. Failures: {}", failed.len());
-        return HttpResponse::build(StatusCode::MULTI_STATUS).json(serde_json::json!({
-            "error_count": failed.len(),
-            "errors": failed
-        })
-        )
+        for (loc, val) in json["items"].as_array().unwrap().iter().enumerate(){
+            if !val["update"]["error"].is_null(){
+                failures.push(
+                    BulkFailures {
+                        document_number: loc,
+                        error: val["update"]["error"]["reason"].as_str().unwrap().to_string(),
+                        status: val["update"]["status"].as_i64().unwrap()
+                    }
+                );
+            }
+        }
     }
     
-    HttpResponse::build(status).finish()
+    HttpResponse::build(status).json(serde_json::json!({
+        "error_count": failures.len(),
+        "has_errors": json["errors"].as_bool().unwrap(),
+        "errors": failures
+    }))
 }

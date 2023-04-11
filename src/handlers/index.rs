@@ -4,11 +4,9 @@ use serde_json::{Value, json};
 
 use crate::{actions::EClientTesting, APPLICATION_LIST_NAME};
 
-use super::{index_struct::*, errors::*, libs::{index::index_exists, create_or_exists_index, index_name_builder, is_server_up, check_server_up_exists_app_index, get_app_indexes_list}, applications_struct::RequiredAppID};
-
-// Temp _ because models and routes having same name
-
-// TODO: Output same / at least similar to API Contract
+use super::structs::{index_struct::*, applications_struct::RequiredAppID};
+use super::libs::{index::index_exists, create_or_exists_index, index_name_builder, is_server_up, check_server_up_exists_app_index, get_app_indexes_list};
+use super::errors::*;
 
 /// Index interfaces with application_id
 /// Creating a new index accesses application_list which finds application_id of that specific index, then adds a new index to the id's list
@@ -18,9 +16,6 @@ pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCr
     if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})); };
 
     // Adds index to an application id, then creates a number of new index 
-
-    // Gets the app's current indexes, append the new index, then update it, then create 10 shards
-
     // if get_document returns 404, then app id doesnt exist, if there is but "indexes" field doesnt exist, then put a new one
 
     let idx = data.index.trim().to_ascii_lowercase().replace(' ', "_");
@@ -55,8 +50,6 @@ pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<Optio
     // Retrieves either one or all index from an application id, returns index or 404 if not found
     // Retrieves index from an application id, returns index or 404 if not found
     // Returns stats of the index
-    // TODO: Return an aggregated result of all the shards (num of docs, deleted docs, etc) -- DELAYED
-    // --TODO: Actually check if application id exists--
 
     match &idx_name.index {
         Some(x) => {
@@ -88,6 +81,7 @@ pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<Optio
 }
 
 pub async fn get_app_list_of_indexes(app: web::Path<RequiredAppID>, client: Data::<EClientTesting>) -> HttpResponse {  
+    // Gets the list of indexes in an application
 
     if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) };
 
@@ -150,7 +144,6 @@ pub async fn update_mappings(data: web::Json<IndexMappingUpdate>, client: Data::
     HttpResponse::build(status).finish()
 }
 
-// TODO: Returns 404 on success for some reason
 pub async fn delete_index(data: web::Path<RequiredIndex>, client: Data::<EClientTesting>) -> HttpResponse {  
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     let index = data.index.trim().to_ascii_lowercase();

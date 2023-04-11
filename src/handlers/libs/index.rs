@@ -33,7 +33,7 @@ pub async fn create_or_exists_index(app_id: Option<String>, index: &str, shards:
                         "dynamic":"true"
                     },
                     "settings": {
-                        "index.number_of_shards": shards.unwrap_or(3),
+                        "index.number_of_shards": shards.unwrap_or(5),
                         "index.number_of_replicas": replicas.unwrap_or(0),
                     }
                 }
@@ -53,6 +53,19 @@ pub fn index_name_builder(app_id: &str, index_name: &str) -> String{
     format!("{}.{}", app_id.trim().to_ascii_lowercase(), index_name.trim().to_ascii_lowercase())
 }
 
+pub async fn index_exists(app_id: &str, index_name: &str, client: &EClientTesting) -> Result<(usize, Vec<String>), (StatusCode, ErrorTypes, Vec<String>)> {
+    let list = match get_app_indexes_list(app_id, client).await {
+        Ok(x) => x,
+        Err((status, error)) => return Err((status, error, Vec::new()))
+    };
+
+    match list.iter().position(|x| x.eq(index_name)) {
+        Some(x) => Ok((x, list)),
+        None => Err((StatusCode::NOT_FOUND, ErrorTypes::IndexNotFound(index_name.to_string()), list))
+    }
+}
+
+// Gets the mapping keys of an index 
 // pub async fn get_mapping_keys(index: &str, client: &EClientTesting) -> Vec<String>{
 //     let maps = client.get_index_mappings(index).await.unwrap();
 //     let resp_json: Value = maps.json::<Value>().await.unwrap();
@@ -64,31 +77,3 @@ pub fn index_name_builder(app_id: &str, index_name: &str) -> String{
 //         Err(_) => Vec::new()
 //     }
 // }
-
-pub async fn index_exists(app_id: &str, index_name: &str, client: &EClientTesting) -> Result<(usize, Vec<String>), (StatusCode, ErrorTypes, Vec<String>)> {
-    // let resp = client.get_document(APPLICATION_LIST_NAME, app_id, Some("indexes".to_string())).await;
-
-    // let resp_json = match resp {
-    //     Ok(x) => {
-    //         x.json::<Value>().await.unwrap()
-    //     },
-    //     Err(_) => {
-    //         return None
-    //     }
-    // };
-
-    // let list: Vec<String> = match resp_json.get("indexes") {
-    //     Some(x) => serde_json::from_value(x.clone()).unwrap(),
-    //     None => Vec::new()
-    // };
-
-    let list = match get_app_indexes_list(app_id, client).await {
-        Ok(x) => x,
-        Err((status, error)) => return Err((status, error, Vec::new()))
-    };
-
-    match list.iter().position(|x| x.eq(index_name)) {
-        Some(x) => Ok((x, list)),
-        None => Err((StatusCode::NOT_FOUND, ErrorTypes::IndexNotFound(index_name.to_string()), list))
-    }
-}

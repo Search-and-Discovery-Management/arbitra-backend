@@ -4,7 +4,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, get_app_indexes_list}, applications_struct::RequiredAppID}, APPLICATION_LIST_NAME};
+use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, get_app_indexes_list}, structs::applications_struct::RequiredAppID}, APPLICATION_LIST_NAME};
 
 #[derive(Deserialize)]
 pub struct TestDataInsert {
@@ -14,6 +14,7 @@ pub struct TestDataInsert {
     pub link: Option<String>
 }
 
+// Inserts test data from a given URL
 pub async fn test_data(app: web::Path<RequiredAppID>, data: web::Json<TestDataInsert>, client: Data::<EClientTesting>) -> HttpResponse{
     // const INDEX: &str = "airplanes_v3";
 
@@ -50,12 +51,6 @@ pub async fn test_data(app: web::Path<RequiredAppID>, data: web::Json<TestDataIn
         },
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
-    
-    // If dynamic mode has value, set to whatever is inputted
-    // let body = json!({
-    //     "dynamic": true
-    // });
-    // let _ = client.update_index_mappings(&name, &body).await;
 
     let resp = reqwest::Client::new()
         .get(&data.link.clone().unwrap_or("https://raw.githubusercontent.com/algolia/datasets/master/airports/airports.json".to_string()))
@@ -65,16 +60,8 @@ pub async fn test_data(app: web::Path<RequiredAppID>, data: web::Json<TestDataIn
     let x = resp.unwrap();
 
     let y = x.json::<Vec<Value>>().await.unwrap();
-    // let mut vals = Vec::new();
-    // for dat in &y {
-    //     // client.insert_document(&name, &dat).await;
-    //     vals.push(client.insert_document(&name, dat));
-    // }
-    // let x = join_all(vals).await;
-    // println!("{:#?}", x[0]);
 
-    let resp = client.bulk_create_documents(&name, &y).await.unwrap();
-    // tokio::time::sleep(Duration::from_secs(5));
+    let resp = client.bulk_index_documents(&name, &y).await.unwrap();
 
     let status = resp.status_code();
     let json: Value = resp.json::<Value>().await.unwrap();

@@ -1,3 +1,4 @@
+// use elasticsearch::http::response::Response;
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 
@@ -38,6 +39,28 @@ pub async fn get_app_indexes_list(app_id: &str, client: &EClientTesting) -> Resu
     };
     Ok(list)
 }
+
+// pub async fn add_index_to_app_indexes(app_id: &str, index: &str, client: &EClientTesting) -> Result<Response,(StatusCode, ErrorTypes)> {
+
+
+//     let resp = get_app_indexes_list(&app_id, &client).await;
+//     match resp {
+//         Ok(mut list) => {
+//             list.push(index.to_string());
+//             list.sort();
+//             list.dedup();
+//             let body = json!({
+//                 "doc": {
+//                     "indexes": list
+//                 }
+//             });
+//             Ok(client.update_document(APPLICATION_LIST_NAME, app_id, &body).await.unwrap());
+//         },
+//         Err((status, err)) => return Err((status, err))
+//     }
+// }
+
+
 // ? TODO: Redo for proper error handling
 /// Checks if the app name exists
 pub async fn exists_app_name(app_name: &str, client: &EClientTesting) -> bool{

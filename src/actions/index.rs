@@ -3,8 +3,6 @@ use serde_json::Value;
 
 use super::{EClientTesting};
 
-
-
 impl EClientTesting{
     /// Creates a new index
     pub async fn create_index(&self, index: &str, body: &Value) -> Result<Response, Error>{

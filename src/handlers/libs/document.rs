@@ -63,10 +63,7 @@ pub async fn document_search(app_id: &str, index: &str, body: &Value, from: &Opt
     Ok((status, json_resp))
 }
 
-pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<String>>, retrieve_field: &Option<String>) -> Value { //, min_match: &Option<i64>) -> Value{ // , fuzziness: Option<String>) -> Value{
-    // let fields_to_search: Option<Vec<String>> = search_in.map(|val| val.split(',').into_iter().map(|x| x.trim().to_string()).collect());
-
-    // let fields_to_search = search_in.as_deref().unwrap_or(&vec!["*".to_string()]);
+pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<String>>, retrieve_field: &Option<String>) -> Value {
     let fields_to_search = search_in.to_owned().unwrap_or(vec!["*".to_string()]);
 
     let fields_to_return = match retrieve_field {
@@ -84,34 +81,8 @@ pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<
             "match_all": {} 
         },
     });
-    // "fields": fields_to_return
-    // "fields": fields_to_return
-
-    // Some(temp_variable) = existing_variable {function(temp_variable from existing_variable)}
-    // if let Some(search_field) = fields_to_search {
-    //     body = json!({
-    //         "_source": include_source,
-    //         "query": {
-    //             "multi_match": {
-    //                 "query": search,
-    //                 "fields": fields_to_search,
-    //                 "fuzziness": fuzziness.unwrap_or("AUTO".to_string())     
-    //             }
-    //         },
-    //         "fields": fields_to_return
-    //     })
-    // } else {
         if let Some(term) = search_term {
 
-            // let mut percentage = min_match.unwrap_or(75);
-            // if percentage > 100 || percentage < -100 {
-            //     percentage = 75; // back to default
-            // }
-            // let percentage_min = format!("{percentage}%");
-
-            // let minimum_should_match = format!("{}%", min_match.unwrap_or(75));
-            // println!("{:#?}", percentage_min);
-            
             body = json!({
                 "_source": {
                     "includes": fields_to_return
@@ -125,53 +96,6 @@ pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<
                         }
                     }
                 })
-            // "fields": fields_to_return
-            // "operator": "or"
-            // "operator": "and"    
         }
-
-        // Testing copy_to 
-        // if let Some(term) = search_term {
-        //     if let Some(fields_to_search) = search_in {
-        //         // "_source": true,
-        //         body = json!({
-        //         "_source": {
-        //             "includes": fields_to_return
-        //         },
-        //         "query": {
-        //                 "multi_match": {
-        //                     "query": term,
-        //                     "fields": fields_to_search,
-        //                     "fuzziness": fuzziness.unwrap_or("AUTO".to_string()),
-        //                 }
-        //             },
-        //             "fields": fields_to_return
-        //         })
-        //         // "operator": "and"    
-        //     } else {
-        //         // "_source": true,
-        //         // "operator": "and"
-        //         println!("{:#?}", fields_to_return);
-        //         println!("{:#?}", search_in);
-        //         body = json!({
-        //             "_source": {
-        //                 "includes": fields_to_return
-        //             },
-        //             "query": {
-        //                 "match": {
-        //                     "default_search": {
-        //                         "query": term,
-        //                         "operator": "or"
-        //                     }
-        //                 }
-        //             }
-        //         })
-        //     };
-        // };
-        // "fuzziness": fuzziness.unwrap_or("AUTO".to_string()),
-        // "fields": fields_to_return
-        // }
-        // "fields": fields_to_return
-        
     body
 }

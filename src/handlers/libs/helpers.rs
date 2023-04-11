@@ -19,12 +19,3 @@ pub async fn check_server_up_exists_app_index(app_id: &str, index: &str, client:
 
     Err((StatusCode::SERVICE_UNAVAILABLE, ErrorTypes::ServerDown))
 }
-
-// pub fn str_or_default_if_exists_in_vec(s: &str, v: Vec<String>, default: &str) -> String {
-//     let st = s.to_string().to_lowercase();
-    
-//     match v.contains(&st){
-//         true => st,
-//         false => default.to_string(),
-//     }
-// }

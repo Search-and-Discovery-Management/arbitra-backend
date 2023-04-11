@@ -665,6 +665,71 @@
         }
         ```
 
+## POST /api/document/bulk/:app_id/:index
+----
+    Inserts a bulk of json documents into an index
+
+* **URL Params**
+
+    **Required:**
+
+    `app_id=[string]`
+
+    `index=[string]`
+
+* **Data Params**
+
+    ```
+    {
+        "data": [
+            <data_object>, 
+            <data_object>, 
+            <data_object>
+            ]
+    }
+    ```
+
+* **Headers**
+
+    None
+
+* **Response**
+    * **Code:** 200
+    
+        **Content:**
+        ```
+        {
+            "error_count": [int],
+            "has_errors": [bool],
+            "errors": [
+                {
+                    "document_number": [int],
+                    "error": [String],
+                    "status": [StatusCode]
+                },
+                ...
+                ] // Empty if no errors
+        }
+        ```
+* **Error Response**
+    * **Code:** 404
+        
+        **Content:**
+
+        ```
+        {
+            "error": "Application [id] not found"
+        }
+        ```
+
+        OR
+        
+        ```
+        {
+            "error": "Index [name] not found"
+        }
+        ```
+
 ## PUT /api/document
 ----
     Updates a document

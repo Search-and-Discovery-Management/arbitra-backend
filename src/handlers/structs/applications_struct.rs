@@ -1,12 +1,12 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
-pub struct NewApp{
+pub struct RequiredAppName{
     pub app_name: String
 }
 
 #[derive(Deserialize)]
-pub struct SearchApp{
+pub struct OptionalAppName{
     pub app_name: Option<String>
 }
 
