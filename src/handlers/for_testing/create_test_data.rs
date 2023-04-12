@@ -19,22 +19,8 @@ pub async fn test_data(app: web::Path<RequiredAppID>, data: web::Json<TestDataIn
     // const INDEX: &str = "airplanes_v3";
 
     let idx = data.index.clone().unwrap_or("airplanes_v3".to_string());
-        
-    // let index_exists = create_or_exists_index(Some(data.app_id.clone()), &idx, data.shards, data.replicas, &client).await;
-
-    // if !index_exists.is_success() && !index_exists.eq(&StatusCode::CONFLICT){
-    //     return HttpResponse::build(index_exists).finish();
-    // }
-
-    // tokio::time::sleep(Duration::from_secs(5));
 
     let name = index_name_builder(&app.app_id, &idx);
-
-    // No question mark for await, https://github.com/actix/actix-web/wiki/FAQ
-    // let resp = reqwest::Client::new()
-    //     .get("https://raw.githubusercontent.com/algolia/datasets/master/airports/airports.json")
-    //     .send()
-    //     .await;
 
     let resp = get_app_indexes_list(&app.app_id, &client).await;
     match resp {

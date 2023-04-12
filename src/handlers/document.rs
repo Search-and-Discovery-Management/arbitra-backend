@@ -1,7 +1,7 @@
 use actix_web::{web::{self, Data}, HttpResponse};
 use reqwest::StatusCode;
 use serde_json::{json, Value};
-use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, search_body_builder, index_exists}, errors::ErrorTypes}};
+use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, search_body_builder}, errors::ErrorTypes}};
 use super::libs::{check_server_up_exists_app_index, document_search};
 use super::structs::{document_struct::{DocumentSearchQuery, RequiredDocumentID, ReturnFields, BulkFailures}, index_struct::RequiredIndex};
 
@@ -10,49 +10,6 @@ use super::structs::{document_struct::{DocumentSearchQuery, RequiredDocumentID, 
 /// 
 /// All operations requires app_id and the index name
 /// 
-
-pub async fn create_document(app_index: web::Path<RequiredIndex>, data: web::Json<Value>, client: Data::<EClientTesting>) -> HttpResponse {  
-    // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
-    let idx = app_index.index.trim().to_ascii_lowercase();
-    match check_server_up_exists_app_index(&app_index.app_id, &idx, &client).await{
-        Ok(_) => (),
-        Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
-    };
-    
-    // Check app exists -> check index exists
-    // -> Get document
-
-    // Creates a new document by getting application id, index name, check if document has new field, if yes, check dynamic mode
-    // if true, update the entire index shards to accomodate the new field, then insert
-
-    // TODO: Change ID to have appended shard number
-    // Solutions: Either use fingerprint or use bulk api, the latter being most likely since it allows direct insert
-
-    // Inserts document into index -> Checks if app has index
-    // Checks if index exists
-    // Insert
-
-    match index_exists(&app_index.app_id, &idx, &client).await {
-        Ok(_) => (),
-        Err((status, err, _)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
-    }
-    
-    let name = index_name_builder(&app_index.app_id, &idx);
-    
-    let resp = client.insert_document(&name, &data).await.unwrap();
-    
-    let status = resp.status_code();
-
-    if !status.is_success() {
-        return match status {
-            StatusCode::NOT_FOUND => HttpResponse::NotFound().json(json!({"error": ErrorTypes::IndexNotFound(name).to_string()})),
-            StatusCode::BAD_REQUEST => HttpResponse::BadRequest().json(json!({"error": ErrorTypes::BadDataRequest.to_string()})),
-            _ => HttpResponse::build(status).json(json!({"error": ErrorTypes::Unknown.to_string()})),
-        }
-    }
-
-    HttpResponse::build(status).finish()
-}
 
 pub async fn create_bulk_documents(app_index: web::Path<RequiredIndex>, data: web::Json<Vec<Value>>, client: Data::<EClientTesting>) -> HttpResponse {
 

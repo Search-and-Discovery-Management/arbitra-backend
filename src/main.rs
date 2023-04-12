@@ -10,7 +10,7 @@ use actix_web::{web::{self, Data}, App, HttpServer};
 // use futures::FutureExt;
 // use futures::future::join_all;
 use handlers::{application::{initialize_new_app_id, get_application_list, get_application, delete_application, update_application,}, for_testing::{create_test_data::test_data, bulk::update_bulk_documents}, welcome::welcome, index::get_app_list_of_indexes};
-use handlers::document::{create_document, post_search, search, update_document, delete_document, get_document, create_bulk_documents};
+use handlers::document::{post_search, search, update_document, delete_document, get_document, create_bulk_documents};
 // use handlers::for_testing::get_keys::test_get_keys;
 use handlers::index::{get_index, create_index, update_mappings, get_mappings, delete_index};
 // use handlers::libs::is_server_up;
@@ -58,8 +58,8 @@ async fn main() -> std::io::Result<()> {
                 .route("/index/mappings", web::put().to(update_mappings))
                 .route("/index/{app_id}/{index}", web::delete().to(delete_index))
                 
-                .route("/document/{app_id}/{index}", web::post().to(create_document))
-                .route("/document/bulk/{app_id}/{index}", web::post().to(create_bulk_documents))
+                .route("/document/{app_id}/{index}", web::post().to(create_bulk_documents))
+                // .route("/document/bulk/{app_id}/{index}", web::post().to(create_bulk_documents))
                 .route("/document/{app_id}/{index}/{document_id}", web::get().to(get_document))
                 .route("/search/{app_id}/{index}", web::post().to(post_search))
                 .route("/search/{app_id}/{index}", web::get().to(search))
@@ -69,7 +69,7 @@ async fn main() -> std::io::Result<()> {
                 .service(
                     web::scope("/another_test")
                         .route("/test_data/{app_id}", web::post().to(test_data))
-                        .route("/document/{app_id}/{index}", web::put().to(update_bulk_documents))
+                        // .route("/document/{app_id}/{index}", web::put().to(update_bulk_documents))
                 )
                 .route("", web::get().to(welcome))
                 .route("/", web::get().to(welcome))
