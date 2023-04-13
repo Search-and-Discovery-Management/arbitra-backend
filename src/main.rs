@@ -9,7 +9,7 @@ use actions::EClientTesting;
 use actix_web::{web::{self, Data}, App, HttpServer};
 // use futures::FutureExt;
 // use futures::future::join_all;
-use handlers::{application::{initialize_new_app_id, get_application_list, get_application, delete_application, update_application,}, for_testing::{create_test_data::test_data, bulk::update_bulk_documents}, welcome::welcome, index::get_app_list_of_indexes};
+use handlers::{application::{initialize_new_app_id, get_application_list, get_application, delete_application, update_application,}, for_testing::{create_test_data::test_data}, welcome::welcome, index::get_app_list_of_indexes};
 use handlers::document::{post_search, search, update_document, delete_document, get_document, create_bulk_documents};
 // use handlers::for_testing::get_keys::test_get_keys;
 use handlers::index::{get_index, create_index, update_mappings, get_mappings, delete_index};

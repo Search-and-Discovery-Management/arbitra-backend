@@ -73,20 +73,20 @@ impl EClientTesting {
     }
 
     // Testing
-    pub async fn bulk_update_documents(&self, index: &str, id_name: &str, data: &[Value]) -> Result<Response, Error> {
-        let body: Vec<BulkOperation<_>> = data
-            .iter()
-            .map(|p| {
-                BulkOperation::update(p[id_name].to_string(), p).into()
-            })
-            .collect();
+    // pub async fn bulk_update_documents(&self, index: &str, id_name: &str, data: &[Value]) -> Result<Response, Error> {
+    //     let body: Vec<BulkOperation<_>> = data
+    //         .iter()
+    //         .map(|p| {
+    //             BulkOperation::update(p[id_name].to_string(), p).into()
+    //         })
+    //         .collect();
 
-        self.elastic
-            .bulk(BulkParts::Index(index))
-            .body(body)
-            .send()
-            .await
-    }
+    //     self.elastic
+    //         .bulk(BulkParts::Index(index))
+    //         .body(body)
+    //         .send()
+    //         .await
+    // }
 
 
     /// Deletes document on an index

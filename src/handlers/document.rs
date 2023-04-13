@@ -113,7 +113,9 @@ pub async fn post_search(app_index: web::Path<RequiredIndex>, data: web::Json<Do
                 "total_took": &total_time_taken.elapsed().as_millis(),
                 "data": &json_resp["hits"]["hits"],
                 "total_data": &json_resp["hits"]["total"]["value"],
-                "match_type": &json_resp["hits"]["total"]["relation"]
+                "match_type": &json_resp["hits"]["total"]["relation"],
+                "from": &data.from.unwrap_or(0),
+                "count": &data.count.unwrap_or(20)
             }))
         },
         Err(err) => err,
@@ -151,7 +153,9 @@ pub async fn search(app_index: web::Path<RequiredIndex>, data: web::Query<Docume
                 "total_took": &total_time_taken.elapsed().as_millis(),
                 "data": &json_resp["hits"]["hits"],
                 "total_data": &json_resp["hits"]["total"]["value"],
-                "match_type": &json_resp["hits"]["total"]["relation"]
+                "match_type": &json_resp["hits"]["total"]["relation"],
+                "from": &data.from.unwrap_or(0),
+                "count": &data.count.unwrap_or(20)
             }))
         },
         Err(x) => x,
