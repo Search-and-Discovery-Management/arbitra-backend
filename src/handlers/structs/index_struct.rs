@@ -37,5 +37,7 @@ pub struct IndexResponse {
     #[serde(rename(deserialize = "docs.count"))]
     pub docs_count: String,
     #[serde(rename(deserialize = "docs.deleted"))]
-    pub docs_deleted: String
+    pub docs_deleted: String,
+    #[serde(rename(deserialize = "pri.store.size"))]
+    pub primary_size: String
 }

@@ -175,9 +175,13 @@
         **Content:**
         ```
         [
-            {<index_object>},
-            {<index_object>},
-            {<index_object>}
+            {
+                "index": <lowercased app_id.index_name>,
+                "docs_count": <String int>,
+                "docs_deleted": <String int>,
+                "primary_size": <String>
+            },
+            ...
         ]
         ```
 * **Error Response**
