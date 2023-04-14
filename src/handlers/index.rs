@@ -76,7 +76,7 @@ pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<Optio
         }
     }
 
-    let json_resp = idx.json::<Vec<Value>>().await.unwrap();
+    let json_resp = idx.json::<Vec<IndexResponse>>().await.unwrap();
     HttpResponse::build(status).json(json_resp)
 }
 

@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Used for Post: Index
@@ -28,4 +28,14 @@ pub struct IndexMappingUpdate {
     pub app_id: String,
     pub index: String,
     pub mappings: Value
+}
+
+/// Used for Response GET: Index
+#[derive(Deserialize, Serialize)]
+pub struct IndexResponse {
+    pub index: String,
+    #[serde(rename(deserialize = "docs.count"))]
+    pub docs_count: String,
+    #[serde(rename(deserialize = "docs.deleted"))]
+    pub docs_deleted: String
 }
