@@ -4,11 +4,11 @@ use elasticsearch::{
 };
 use reqwest::{Url};
 
-pub struct EClientTesting {
+pub struct EClient {
     pub elastic: Elasticsearch
 }
 
-impl EClientTesting {
+impl EClient {
 
     /// Creates a new instance of EClient
     /// 

@@ -1,21 +1,28 @@
 [package]
 name = "dps"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = "4"
-serde = { version = "1.0", features = ["derive"] }
-reqwest = { version = "0.11", features = ["blocking", "json"] }
-elasticsearch = "8.5.0-alpha.1"
-tokio = { version = "*", features = ["full"] }
-serde_json = "1"
-env_logger = "0.10.0"
-thiserror = "1.0.38"
-futures = "0.3.27"
-actix-cors = "0.6.4"
+actix-web = "4" # actix
+serde = { version = "1.0", features = ["derive"] } # serialize, deserialize
+reqwest = { version = "0.11", features = ["json"] } 
+elasticsearch = "8.5.0-alpha.1" # elasticsearch
+serde_json = "1" # json
+env_logger = "0.10.0" # Debug mode
+thiserror = "1.0.38" # Errors
+futures = "0.3.27" # Futures join all for creating shard indexes
+actix-cors = "0.6.4" # Cross-origin resource sharing
+nanoid = "0.4.0" # Used to generate document id
+fastrand = "1.9.0" # Used to know which shard should the document go
+mimalloc = "0.1.36" # Microsoft mimalloc memory allocator
+actix-multipart = "0.6.0" # Upload file
+csv = "1.2.1" # Import from CSV/TSV files
 
 [profile.release]
-lto = "thin"
+lto = "fat" # Link Time Optimization
+
+[profile.dev]
+opt-level = 1 # Enable basic optimization on debug builds

@@ -176,10 +176,10 @@
         ```
         [
             {
-                "index": <lowercased app_id.index_name>,
-                "docs_count": <String int>,
-                "docs_deleted": <String int>,
-                "primary_size": <String>
+                "index": <index_name>,
+                "docs_count": <int>,
+                "docs_deleted": <int>,
+                "primary_size": <int>
             },
             ...
         ]
@@ -272,7 +272,10 @@
 
     ```
     {
-        "index": string
+        "index": string,
+        "shards": int (Optional),
+        "replicas": int (Optional),
+        "partitions": int (Optional)
     }
     ```
 

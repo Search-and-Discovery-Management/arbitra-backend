@@ -6,7 +6,8 @@ use serde_json::Value;
 pub struct IndexCreate{
     pub index: String,
     pub shards: Option<usize>,
-    pub replicas: Option<usize>
+    pub replicas: Option<usize>,
+    pub partitions: Option<usize>
 }
 
 /// Used for Get: Index
@@ -34,10 +35,7 @@ pub struct IndexMappingUpdate {
 #[derive(Deserialize, Serialize)]
 pub struct IndexResponse {
     pub index: String,
-    #[serde(rename(deserialize = "docs.count"))]
-    pub docs_count: String,
-    #[serde(rename(deserialize = "docs.deleted"))]
-    pub docs_deleted: String,
-    #[serde(rename(deserialize = "pri.store.size"))]
-    pub primary_size: String
+    pub docs_count: u64,
+    pub docs_deleted: u64,
+    pub primary_size: u64
 }

@@ -2,12 +2,12 @@
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 
-use crate::{actions::EClientTesting, handlers::{errors::ErrorTypes, libs::document::search_body_builder}, APPLICATION_LIST_NAME};
+use crate::{actions::EClient, handlers::{errors::ErrorTypes, libs::document::search_body_builder}, APPLICATION_LIST_NAME};
 
 use super::document::get_document;
 
 /// Inserts a new app name to the application list
-pub async fn insert_new_app_name(app_name: &str, client: &EClientTesting) -> StatusCode {
+pub async fn insert_new_app_name(app_name: &str, client: &EClient) -> StatusCode {
     let exists = exists_app_name(app_name, client).await;
 
     // If exists, return conflict
@@ -24,7 +24,7 @@ pub async fn insert_new_app_name(app_name: &str, client: &EClientTesting) -> Sta
     client.insert_document(APPLICATION_LIST_NAME, &body).await.unwrap().status_code()
 }
 
-pub async fn get_app_indexes_list(app_id: &str, client: &EClientTesting) -> Result<Vec<String>, (StatusCode, ErrorTypes)> {
+pub async fn get_app_indexes_list(app_id: &str, client: &EClient) -> Result<Vec<String>, (StatusCode, ErrorTypes)> {
     let (_, value) = match get_document(APPLICATION_LIST_NAME, app_id, &Some("indexes".to_string()), client).await{
         Ok(x) => x,
         Err((status, _)) => return match status {
@@ -63,7 +63,7 @@ pub async fn get_app_indexes_list(app_id: &str, client: &EClientTesting) -> Resu
 
 // ? TODO: Redo for proper error handling
 /// Checks if the app name exists
-pub async fn exists_app_name(app_name: &str, client: &EClientTesting) -> bool{
+pub async fn exists_app_name(app_name: &str, client: &EClient) -> bool{
     // This uses the document search for an exact match, if exists true, else false
 
     /*
@@ -79,7 +79,7 @@ pub async fn exists_app_name(app_name: &str, client: &EClientTesting) -> bool{
 
     let app_name_exact = format!("\"{app_name}\"");
     
-    // ! TODO: Possibly flawed search since it may find ones with similar name with exact keywords, although its unlikely to match when there is no space
+    // ! Possibly flawed search since it may find ones with similar name with exact keywords, although its unlikely to match when there is no space
     let body = search_body_builder(&Some(app_name_exact), &Some(vec!["name".to_string()]), &None);
 
     let resp = client.search_index(APPLICATION_LIST_NAME, &body, &None, &Some(1)).await.unwrap();

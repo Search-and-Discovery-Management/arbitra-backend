@@ -1,17 +1,17 @@
 use actix_web::{web::{self, Data}, HttpResponse};
+// use nanoid::nanoid;
 use reqwest::StatusCode;
 use serde_json::{json, Value};
-use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, search_body_builder}, errors::ErrorTypes}};
+use crate::{actions::EClient, handlers::{libs::{index_name_builder, search_body_builder, bulk_create}, errors::ErrorTypes}};
 use super::libs::{check_server_up_exists_app_index, document_search};
-use super::structs::{document_struct::{DocumentSearchQuery, RequiredDocumentID, ReturnFields, BulkFailures}, index_struct::RequiredIndex};
+use super::structs::{document_struct::{DocumentSearchQuery, RequiredDocumentID, ReturnFields}, index_struct::RequiredIndex};
 
 /// Document interfaces with index that is stored within the application id
 /// Inserting a document with a new field syncs the fields with all other shards
 /// 
 /// All operations requires app_id and the index name
-/// 
-
-pub async fn create_bulk_documents(app_index: web::Path<RequiredIndex>, data: web::Json<Vec<Value>>, client: Data::<EClientTesting>) -> HttpResponse {
+pub async fn create_bulk_documents(app_index: web::Path<RequiredIndex>, data: web::Json<Vec<Value>>, client: Data::<EClient>) -> HttpResponse {
+    println!("Route: Bulk Create Document");
 
     let idx = app_index.index.clone().trim().to_ascii_lowercase();
 
@@ -20,39 +20,13 @@ pub async fn create_bulk_documents(app_index: web::Path<RequiredIndex>, data: we
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
 
-    let name = index_name_builder(&app_index.app_id, &idx);
-
-    let resp = client.bulk_index_documents(&name, &data).await.unwrap();
-
-    let status = resp.status_code();
-    let json: Value = resp.json::<Value>().await.unwrap();
-
-    let mut failures: Vec<BulkFailures> = vec![];
-    if json["errors"].as_bool().unwrap() {
-        for (loc, val) in json["items"].as_array().unwrap().iter().enumerate(){
-            if !val["index"]["error"].is_null(){
-                failures.push(
-                    BulkFailures {
-                        document_number: loc,
-                        error: val["index"]["error"]["reason"].as_str().unwrap().to_string(),
-                        status: val["index"]["status"].as_i64().unwrap()
-                    }
-                );
-            }
-        }
-    }
-    
-    HttpResponse::build(status).json(serde_json::json!({
-        "error_count": failures.len(),
-        "has_errors": json["errors"].as_bool().unwrap(),
-        "errors": failures
-    }))
+    bulk_create(&app_index.app_id, &app_index.index, &data, &client).await
 }
 
-pub async fn get_document(data: web::Path<RequiredDocumentID>, query: web::Path<ReturnFields>, client: Data::<EClientTesting>) -> HttpResponse {  
-    // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
+pub async fn get_document(data: web::Path<RequiredDocumentID>, query: web::Path<ReturnFields>, client: Data::<EClient>) -> HttpResponse {  
+    println!("Route: Get Document");
     // App id, index name, and document id
-    // This will retrieve the shard number appended on the id
+    // This will retrieve the shard number appended on the id then retrieve document located on that shard
 
     let idx = data.index.trim().to_ascii_lowercase();
 
@@ -61,7 +35,11 @@ pub async fn get_document(data: web::Path<RequiredDocumentID>, query: web::Path<
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
 
-    let name = &index_name_builder(&data.app_id, &idx);
+    let doc_split: Vec<_> = data.document_id.split('.').collect();
+
+    let shard_number = doc_split.last();
+
+    let name = &format!("{}.{}", index_name_builder(&data.app_id, &idx), shard_number.unwrap());
 
     let resp = client.get_document(name, &data.document_id, &query.return_fields).await.unwrap();
 
@@ -83,7 +61,21 @@ pub async fn get_document(data: web::Path<RequiredDocumentID>, query: web::Path<
 }
 
 /// A Post method for search, also returns a list of documents from index if no query is given
-pub async fn post_search(app_index: web::Path<RequiredIndex>, data: web::Json<DocumentSearchQuery>, client: Data::<EClientTesting>) -> HttpResponse {
+pub async fn post_search(app_index: web::Path<RequiredIndex>, optional_data: Option<web::Json<DocumentSearchQuery>>, client: Data::<EClient>) -> HttpResponse {
+    println!("Route: POST Search");
+
+    let data = if optional_data.is_some(){
+        optional_data.as_deref().unwrap().to_owned()
+    } else {
+        &DocumentSearchQuery{
+            search_term: None,
+            search_in: None,
+            return_fields: None,
+            from: None,
+            count: None,
+            wildcards: None
+        }
+    };
 
     let total_time_taken = std::time::Instant::now();
 
@@ -94,7 +86,6 @@ pub async fn post_search(app_index: web::Path<RequiredIndex>, data: web::Json<Do
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
     
-    // TODO: Default search_in into a type of searchableAttributes which defaults its search to all fields with searchableAttributes when nothing is supplied 
     let fields_to_search = data.search_in.to_owned().map(|val| val.split(',').map(|x| x.trim().to_string()).collect());
 
     let term = if data.search_term.is_some() && data.wildcards.unwrap_or(false){
@@ -106,7 +97,7 @@ pub async fn post_search(app_index: web::Path<RequiredIndex>, data: web::Json<Do
     };
     let body = search_body_builder(&term, &fields_to_search, &data.return_fields);
 
-    match document_search(&app_index.app_id, &idx, &body, &data.from, &data.count, &client).await {
+    match document_search(&app_index.app_id, &idx, &body, &data.from, &data.count, true, &client).await {
         Ok((status, json_resp)) => {
             HttpResponse::build(status).json(json!({
                 "search_took": &json_resp["took"],
@@ -123,7 +114,8 @@ pub async fn post_search(app_index: web::Path<RequiredIndex>, data: web::Json<Do
 }
 
 /// A Get method for search, also returns a list of documents from index if no query is given
-pub async fn search(app_index: web::Path<RequiredIndex>, data: web::Query<DocumentSearchQuery>, client: Data::<EClientTesting>) -> HttpResponse {
+pub async fn search(app_index: web::Path<RequiredIndex>, data: web::Query<DocumentSearchQuery>, client: Data::<EClient>) -> HttpResponse {
+    println!("Route: Search");
 
     let total_time_taken = std::time::Instant::now();
 
@@ -146,7 +138,7 @@ pub async fn search(app_index: web::Path<RequiredIndex>, data: web::Query<Docume
 
     let body = search_body_builder(&term, &fields_to_search, &data.return_fields);
 
-    match document_search(&app_index.app_id, &idx, &body, &data.from, &data.count, &client).await {
+    match document_search(&app_index.app_id, &idx, &body, &data.from, &data.count, true, &client).await {
         Ok((status, json_resp)) => {
             HttpResponse::build(status).json(json!({
                 "search_took": &json_resp["took"],
@@ -162,7 +154,8 @@ pub async fn search(app_index: web::Path<RequiredIndex>, data: web::Query<Docume
     }
 }
 
-pub async fn update_document(app_index_doc: web::Path<RequiredDocumentID>, data: web::Json<Value>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn update_document(app_index_doc: web::Path<RequiredDocumentID>, data: web::Json<Value>, client: Data::<EClient>) -> HttpResponse {  
+    println!("Route: Update Document");
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     // Updates the documents in shard
 
@@ -173,13 +166,17 @@ pub async fn update_document(app_index_doc: web::Path<RequiredDocumentID>, data:
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
     
-    let name = index_name_builder(&app_index_doc.app_id, &idx);
+    let doc_split: Vec<_> = app_index_doc.document_id.split('.').collect();
+
+    let shard_number = doc_split.last();
+
+    let name = &format!("{}.{}", index_name_builder(&app_index_doc.app_id, &idx), shard_number.unwrap());
     
     let doc = json!({
         "doc": &data
     });
 
-    let resp = client.update_document(&name, &app_index_doc.document_id, &doc).await.unwrap();
+    let resp = client.update_document(name, &app_index_doc.document_id, &doc).await.unwrap();
     
     let status = resp.status_code();
     
@@ -195,7 +192,8 @@ pub async fn update_document(app_index_doc: web::Path<RequiredDocumentID>, data:
     HttpResponse::build(status).finish()
 }
 
-pub async fn delete_document(data: web::Path<RequiredDocumentID>, client: Data::<EClientTesting>) -> HttpResponse {  
+pub async fn delete_document(data: web::Path<RequiredDocumentID>, client: Data::<EClient>) -> HttpResponse {  
+    println!("Route: Delete Document");
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     // Deletes the document in shard
 
@@ -206,9 +204,13 @@ pub async fn delete_document(data: web::Path<RequiredDocumentID>, client: Data::
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
 
-    let name = index_name_builder(&data.app_id, &idx);
+    let doc_split: Vec<_> = data.document_id.split('.').collect();
 
-    let resp = client.delete_document(&name, &data.document_id).await.unwrap();
+    let shard_number = doc_split.last();
+
+    let name = &format!("{}.{}", index_name_builder(&data.app_id, &idx), shard_number.unwrap());
+
+    let resp = client.delete_document(name, &data.document_id).await.unwrap();
 
     let status_code = resp.status_code();
 

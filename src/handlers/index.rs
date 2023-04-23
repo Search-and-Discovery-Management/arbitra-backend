@@ -2,7 +2,7 @@ use actix_web::{web::{self, Data}, HttpResponse};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
-use crate::{actions::EClientTesting, APPLICATION_LIST_NAME};
+use crate::{actions::EClient, APPLICATION_LIST_NAME};
 
 use super::structs::{index_struct::*, applications_struct::RequiredAppID};
 use super::libs::{index::index_exists, create_or_exists_index, index_name_builder, is_server_up, check_server_up_exists_app_index, get_app_indexes_list};
@@ -11,7 +11,11 @@ use super::errors::*;
 /// Index interfaces with application_id
 /// Creating a new index accesses application_list which finds application_id of that specific index, then adds a new index to the id's list
 /// TODO: Do not allow index name with space, dots, etc and allow only alphabets, numbers, and underscores
-pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCreate>, client: Data::<EClientTesting>) -> HttpResponse {  
+/// 
+/// Creates x amount of partition indexes such that (default: 10)
+/// app_id.index_name.partition_number
+pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCreate>, client: Data::<EClient>) -> HttpResponse {  
+    println!("Route: Create Index");
 
     if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})); };
 
@@ -34,10 +38,14 @@ pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCr
                         "indexes": list
                     }
                 });
-                // TODO: Adding new index creates 10 shards -> lib function? -- DELAYED
                 let _ = client.update_document(APPLICATION_LIST_NAME, &app.app_id, &body).await;
 
-                let _ = create_or_exists_index(Some(app.app_id.to_string()), &idx, data.shards, data.replicas, &client).await.to_string();
+                let x = match data.partitions {
+                    Some(z) => Some(z),
+                    None => Some(10)
+                };
+
+                let _ = create_or_exists_index(Some(app.app_id.to_string()), &idx, data.shards, data.replicas, x, &client).await.to_string();
 
                 HttpResponse::Created().finish()
             },
@@ -46,41 +54,72 @@ pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCr
     }
 }
 
-pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<OptionalIndex>, client: Data::<EClientTesting>) -> HttpResponse {  
-    // Retrieves either one or all index from an application id, returns index or 404 if not found
-    // Retrieves index from an application id, returns index or 404 if not found
-    // Returns stats of the index
+// TODO: Refactor This
+pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<OptionalIndex>, client: Data<EClient>) -> HttpResponse{
+    println!("Route: Get Index");
 
-    match &idx_name.index {
-        Some(x) => {
-            match check_server_up_exists_app_index(&app.app_id, &x.trim().to_ascii_lowercase(), &client).await{
-                Ok(_) => (),
-                Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
-            };
-        },
-        None => if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
-    }
-    
-    let app_id = &app.app_id;
-    let index = &idx_name.index.to_owned().unwrap_or("*".to_string()).trim().to_ascii_lowercase();
-        
-    let name = index_name_builder(app_id, index);
-    let idx = client.get_index(Some(name)).await.unwrap();
+    let resp = client.get_document(APPLICATION_LIST_NAME, &app.app_id, &Some("indexes".to_string())).await.unwrap();
 
-    let status = idx.status_code();
+    let status = resp.status_code();
 
     if !status.is_success(){
-        return match status {
-            StatusCode::NOT_FOUND => HttpResponse::NotFound().finish(),
-            _ => HttpResponse::build(status).json(json!({"error": ErrorTypes::Unknown.to_string()}))
-        }
+        return HttpResponse::NotFound().json(json!({"error": ErrorTypes::ApplicationNotFound(app.app_id.to_owned()).to_string()}))
     }
+    
+    match get_app_indexes_list(&app.app_id, &client).await {
+        Ok(x) => {
+            let mut indexes: Vec<IndexResponse> = vec![];
+            if idx_name.index.is_some(){
+                if x.contains(&idx_name.index.clone().unwrap()){
+                    let name = format!("{}.*", index_name_builder(&app.app_id, &idx_name.index.clone().unwrap()));
+                    let idx = client.get_index_stats(&[&name], Some(&["_all"]), Some(&["_all.primaries.docs", "_all.primaries.store"])).await.unwrap().json::<Value>().await.unwrap();
+                    if idx.get("_all").is_some(){
+                        let count = idx["_all"]["primaries"]["docs"].get("count").unwrap();
+                        let deleted = idx["_all"]["primaries"]["docs"].get("deleted").unwrap();
+                        let size = idx["_all"]["primaries"]["store"].get("size_in_bytes").unwrap();
+    
+                        indexes.push(
+                            IndexResponse{
+                                index: idx_name.index.clone().unwrap(),
+                                docs_count: count.as_u64().unwrap(),
+                                docs_deleted: deleted.as_u64().unwrap(),
+                                primary_size: size.as_u64().unwrap()
+                            }
+                        )
+                    }
+                } else {
+                    return HttpResponse::NotFound().json(json!({"error": ErrorTypes::IndexNotFound(idx_name.index.clone().unwrap()).to_string()}))
+                }
+            } else {
+                for i in x {
+                    let name = format!("{}.*", index_name_builder(&app.app_id, &i));
+                    let idx = client.get_index_stats(&[&name], Some(&["_all"]), Some(&["_all.primaries.docs", "_all.primaries.store"])).await.unwrap().json::<Value>().await.unwrap();
 
-    let json_resp = idx.json::<Vec<IndexResponse>>().await.unwrap();
-    HttpResponse::build(status).json(json_resp)
+                    if idx.get("_all").is_some(){
+                        let count = idx["_all"]["primaries"]["docs"].get("count").unwrap();
+                        let deleted = idx["_all"]["primaries"]["docs"].get("deleted").unwrap();
+                        let size = idx["_all"]["primaries"]["store"].get("size_in_bytes").unwrap();
+
+                        indexes.push(
+                            IndexResponse{
+                                index: i,
+                                docs_count: count.as_u64().unwrap(),
+                                docs_deleted: deleted.as_u64().unwrap(),
+                                primary_size: size.as_u64().unwrap()
+                            }
+                        )
+                    }
+                }
+            }
+            HttpResponse::Ok().json(indexes)
+        },
+        Err((status, err)) => HttpResponse::build(status).json(json!({"error": err.to_string()})),
+    }
 }
 
-pub async fn get_app_list_of_indexes(app: web::Path<RequiredAppID>, client: Data::<EClientTesting>) -> HttpResponse {  
+
+pub async fn get_app_list_of_indexes(app: web::Path<RequiredAppID>, client: Data::<EClient>) -> HttpResponse {  
+    println!("Route: Get App Indexes List");
     // Gets the list of indexes in an application
 
     if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) };
@@ -91,7 +130,9 @@ pub async fn get_app_list_of_indexes(app: web::Path<RequiredAppID>, client: Data
     }
 }
 
-pub async fn get_mappings(data: web::Path<RequiredIndex>, client: Data::<EClientTesting>) -> HttpResponse {
+// Gets shard 0 mappings
+pub async fn get_mappings(data: web::Path<RequiredIndex>, client: Data::<EClient>) -> HttpResponse {
+    println!("Route: Get Mappings, app id:{}, index mapping being updated: {}", data.app_id, data.index);
 
     let index = data.index.trim().to_ascii_lowercase();
 
@@ -101,7 +142,7 @@ pub async fn get_mappings(data: web::Path<RequiredIndex>, client: Data::<EClient
     };
     // Returns the mappings of the index
         
-    let name = index_name_builder(&data.app_id, &index);
+    let name = format!("{}.0", index_name_builder(&data.app_id, &index));
     let idx = client.get_index_mappings(&name).await.unwrap();
 
     let status = idx.status_code();
@@ -119,7 +160,9 @@ pub async fn get_mappings(data: web::Path<RequiredIndex>, client: Data::<EClient
     HttpResponse::build(status).json(json_resp[&name].clone())
 }
 
-pub async fn update_mappings(data: web::Json<IndexMappingUpdate>, client: Data::<EClientTesting>) -> HttpResponse {  
+// Updates all shard mappings
+pub async fn update_mappings(data: web::Json<IndexMappingUpdate>, client: Data::<EClient>) -> HttpResponse { 
+    println!("Route: Update Mappings, app id:{}, index mapping being updated: {}", data.app_id, data.index);
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     let index = data.index.trim().to_ascii_lowercase();
     match check_server_up_exists_app_index(&data.app_id, &index, &client).await{
@@ -128,7 +171,7 @@ pub async fn update_mappings(data: web::Json<IndexMappingUpdate>, client: Data::
     };
     // Updates the mappings of the index
         
-    let name = index_name_builder(&data.app_id, &index);
+    let name = format!("{}.*", index_name_builder(&data.app_id, &index));
     let idx = client.update_index_mappings(&name, &data.mappings).await.unwrap();
 
     let status = idx.status_code();
@@ -144,7 +187,9 @@ pub async fn update_mappings(data: web::Json<IndexMappingUpdate>, client: Data::
     HttpResponse::build(status).finish()
 }
 
-pub async fn delete_index(data: web::Path<RequiredIndex>, client: Data::<EClientTesting>) -> HttpResponse {  
+// Remove from app id then delete all shard
+pub async fn delete_index(data: web::Path<RequiredIndex>, client: Data::<EClient>) -> HttpResponse {  
+    println!("Route: Delete Index, app id:{}, index being deleted: {}", data.app_id, data.index);
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     let index = data.index.trim().to_ascii_lowercase();
     match check_server_up_exists_app_index(&data.app_id, &index, &client).await{
@@ -152,23 +197,9 @@ pub async fn delete_index(data: web::Path<RequiredIndex>, client: Data::<EClient
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
     
-    // Deletes index along with its shard, then removes itself from the application id's index list
+    // Removes itself from the application id's index list, then proceed to delete the shard indexes
 
-    let app_id = &data.app_id;
-
-    let name = index_name_builder(app_id, &index);
-    let idx = client.delete_index(&name).await.unwrap();
-
-    let status = idx.status_code();
-
-    if !status.is_success(){
-        return match status {
-            StatusCode::NOT_FOUND => HttpResponse::NotFound().finish(),
-            _ => HttpResponse::build(status).json(json!({"error": ErrorTypes::Unknown.to_string()}))
-        }
-    }
-
-    match index_exists(app_id, &index, &client).await {
+    match index_exists(&data.app_id, &index, &client).await {
         // If app and index exists
         Ok((needle, mut list)) => {
             list.remove(needle);
@@ -177,9 +208,17 @@ pub async fn delete_index(data: web::Path<RequiredIndex>, client: Data::<EClient
                     "indexes": list
                 }
             });
-            // This doesnt remove the index from the list for some reason, even with the specified index removed
-            let x = client.update_document(APPLICATION_LIST_NAME, app_id, &body).await;
-            println!("{:#?}", x);
+            
+            let resp = client.update_document(APPLICATION_LIST_NAME, &data.app_id, &body).await.unwrap();
+            let status = resp.status_code();
+
+            if status.is_success(){
+                let indexes = client.cat_get_index(Some(format!("{}.*", index_name_builder(&data.app_id, &data.index)))).await.unwrap().json::<Vec<Value>>().await.unwrap();
+                
+                for i in indexes {
+                    let _ = client.delete_index(i["index"].as_str().unwrap()).await;
+                }
+            }
             HttpResponse::build(status).finish()
         },
         // If either doesnt exist

@@ -1,14 +1,70 @@
-// ? TODO: Create bulk function
-// pub async fn convert_to_bulk(operation_type: BulkTypes, data: &Value) -> {
-
 use actix_web::HttpResponse;
-// }
+use nanoid::nanoid;
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
-use crate::{handlers::{errors::ErrorTypes, libs::index_name_builder}, actions::EClientTesting};
+use crate::{handlers::{errors::ErrorTypes, libs::{index_name_builder, check_server_up_exists_app_index}, structs::document_struct::BulkFailures}, actions::EClient};
 
-pub async fn get_document(index: &str, document_id: &str, retrieve_fields: &Option<String>, client: &EClientTesting) -> Result<(StatusCode, Value), (StatusCode, ErrorTypes)>{
+// Convert to StatusCode, Vec<Value>?
+pub async fn bulk_create(app_id: &str, index: &str, data: &[Value], client: &EClient) -> HttpResponse{
+    let idx = index.trim().to_ascii_lowercase();
+
+    match check_server_up_exists_app_index(app_id, &idx, client).await{
+        Ok(_) => (),
+        Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
+    }
+
+    let name = index_name_builder(app_id, &idx);
+
+    let num_of_indexes = client.cat_get_index(Some(format!("{name}.*"))).await.unwrap().json::<Vec<Value>>().await.unwrap().len();
+
+    let mut shard_numbers: Vec<usize> = vec![];
+    let mut ids: Vec<String> = vec![];
+
+    let rng = fastrand::Rng::new();
+    for _ in 0..data.len() {
+        shard_numbers.push(rng.usize(0..num_of_indexes));
+        ids.push(format!("{}{}", nanoid!(), nanoid!()));
+    }
+
+    let resp = client.bulk_create_documents(&name, data, &ids, &shard_numbers).await.unwrap();
+
+    let mut status = resp.status_code();
+    let json: Value = resp.json::<Value>().await.unwrap();
+
+    let mut failures: Vec<BulkFailures> = vec![];
+    if json["errors"].as_bool().unwrap() {
+        for (loc, val) in json["items"].as_array().unwrap().iter().enumerate(){
+            if !val["index"]["error"].is_null(){
+                failures.push(
+                    BulkFailures {
+                        document_number: loc,
+                        error: val["index"]["error"]["reason"].as_str().unwrap().to_string(),
+                        status: val["index"]["status"].as_i64().unwrap()
+                    }
+                );
+            }
+        }
+    }
+    // println!("{:#?}", failures);
+    if json["errors"].as_bool().unwrap() {
+        status = StatusCode::MULTI_STATUS;
+    }
+
+    // Force elastic to immediately index the new documents
+    let body = search_body_builder(&Some("".to_string()), &Some(vec!["".to_string()]), &Some("".to_string()));
+    let z = document_search(app_id, index, &body, &Some(0), &Some(0), true, client).await;
+    println!("{}", z.unwrap().0);
+    
+    HttpResponse::build(status).json(serde_json::json!({
+        "error_count": failures.len(),
+        "has_errors": json["errors"].as_bool().unwrap(),
+        "errors": failures
+    }))
+}
+
+
+pub async fn get_document(index: &str, document_id: &str, retrieve_fields: &Option<String>, client: &EClient) -> Result<(StatusCode, Value), (StatusCode, ErrorTypes)>{
     let resp = client.get_document(index, document_id, retrieve_fields).await.unwrap();
 
     let status_code = resp.status_code();
@@ -26,13 +82,14 @@ pub async fn get_document(index: &str, document_id: &str, retrieve_fields: &Opti
     Ok((status_code, json_resp))
 }
 
-pub async fn document_search(app_id: &str, index: &str, body: &Value, from: &Option<i64>, count: &Option<i64>, client: &EClientTesting) -> Result<(StatusCode, Value), HttpResponse> {
+pub async fn document_search(app_id: &str, index: &str, body: &Value, from: &Option<i64>, count: &Option<i64>, partitioned: bool, client: &EClient) -> Result<(StatusCode, Value), HttpResponse> {
 
-    let name = index_name_builder(app_id, index);
+    let mut name = index_name_builder(app_id, index);
+    if partitioned {
+        name = format!("{name}.*");
+    }
     
     let time_now = std::time::Instant::now();
-    // This takes a while to get a response on large "count" value, perhaps there is a better way?
-    // Benchmarking with returning 10000 (worst case) of movie_records yields 300ms to 400ms on release mode, 400ms to 600ms on debug mode
     let resp = client.search_index(&name, body, from, count).await.unwrap();
     println!("Initial Request elapsed: {:#?}ms", time_now.elapsed().as_millis());
 
@@ -49,22 +106,19 @@ pub async fn document_search(app_id: &str, index: &str, body: &Value, from: &Opt
     };
 
     let receive = std::time::Instant::now();
-    // This takes a while to get a response on large "count" value, perhaps there is a better way?
-    // Benchmarking with returning 10000 (worst case) of movie_records yields 500ms to 600ms on release mode, 1300ms to 1400ms on debug mode
-    // 1. This takes in the body response because the connection is still active
-    // 2. This parses the input into json
-    let text_resp = resp.text().await.unwrap();
-    println!("Body Response elapsed {:#?}ms", receive.elapsed().as_millis());
+    let json_resp = resp.json::<Value>().await.unwrap();
+    println!("Body response and conversion elapsed {:#?}ms", receive.elapsed().as_millis());
 
-    let convert = std::time::Instant::now();
-    let json_resp = serde_json::from_str(&text_resp).unwrap();
-    println!("Conversion elapsed {:#?}ms", convert.elapsed().as_millis());
+    // let convert = std::time::Instant::now();
+    // let json_resp = serde_json::from_str(&text_resp).unwrap();
+    // println!("Conversion elapsed {:#?}ms", convert.elapsed().as_millis());
 
     Ok((status, json_resp))
 }
 
 pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<String>>, retrieve_field: &Option<String>) -> Value {
     let fields_to_search = search_in.to_owned().unwrap_or(vec!["*".to_string()]);
+
 
     let fields_to_return = match retrieve_field {
         Some(val) => val.split(',').map(|x| x.trim().to_string()).collect(),

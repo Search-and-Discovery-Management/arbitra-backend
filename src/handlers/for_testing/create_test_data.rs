@@ -1,10 +1,10 @@
 use actix_web::{HttpResponse, web::{Data, self}};
-// use futures::future::join_all;
 use reqwest::StatusCode;
+// use futures::future::join_all;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::{actions::EClientTesting, handlers::{libs::{index_name_builder, get_app_indexes_list}, structs::applications_struct::RequiredAppID}, APPLICATION_LIST_NAME};
+use crate::{actions::EClient, handlers::{libs::{get_app_indexes_list, create_or_exists_index, bulk_create, is_server_up}, structs::applications_struct::RequiredAppID, errors::ErrorTypes}, APPLICATION_LIST_NAME};
 
 #[derive(Deserialize)]
 pub struct TestDataInsert {
@@ -14,13 +14,25 @@ pub struct TestDataInsert {
     pub link: Option<String>
 }
 
-// Inserts test data from a given URL
-pub async fn test_data(app: web::Path<RequiredAppID>, data: web::Json<TestDataInsert>, client: Data::<EClientTesting>) -> HttpResponse{
-    // const INDEX: &str = "airplanes_v3";
+/// Inserts test data from a given URL
+/// 
+/// TODO: Error Handling
+pub async fn test_data(app: web::Path<RequiredAppID>, optional_data: Option<web::Json<TestDataInsert>>, client: Data::<EClient>) -> HttpResponse{
+    println!("Route: Create Test Data");
 
+    if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
+
+    let data = if optional_data.is_some(){
+        optional_data.as_deref().unwrap().to_owned()
+    } else {
+        &TestDataInsert{
+            index: None,
+            shards: None,
+            replicas: None,
+            link: None,
+        }
+    };
     let idx = data.index.clone().unwrap_or("airplanes_v3".to_string());
-
-    let name = index_name_builder(&app.app_id, &idx);
 
     let resp = get_app_indexes_list(&app.app_id, &client).await;
     match resp {
@@ -34,6 +46,7 @@ pub async fn test_data(app: web::Path<RequiredAppID>, data: web::Json<TestDataIn
                 }
             });
             let _ = client.update_document(APPLICATION_LIST_NAME, &app.app_id, &body).await;
+            let _ = create_or_exists_index(Some(app.app_id.clone()), &idx, None, None, Some(10), &client).await;
         },
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
@@ -41,35 +54,11 @@ pub async fn test_data(app: web::Path<RequiredAppID>, data: web::Json<TestDataIn
     let resp = reqwest::Client::new()
         .get(&data.link.clone().unwrap_or("https://raw.githubusercontent.com/algolia/datasets/master/airports/airports.json".to_string()))
         .send()
-        .await;
+        .await
+        .unwrap();
+    
+    let data = resp.json::<Vec<Value>>().await.unwrap();
 
-    let x = resp.unwrap();
-
-    let y = x.json::<Vec<Value>>().await.unwrap();
-
-    let resp = client.bulk_index_documents(&name, &y).await.unwrap();
-
-    let status = resp.status_code();
-    let json: Value = resp.json::<Value>().await.unwrap();
-
-    if json["errors"].as_bool().unwrap() {
-        let failed: Vec<&Value> = json["items"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .filter(|v| !v["error"].is_null())
-            .collect();
-
-        println!("Errors whilst indexing. Failures: {}", failed.len());
-        return HttpResponse::build(StatusCode::MULTI_STATUS).json(serde_json::json!({
-            "error_count": failed.len(),
-            "errors": failed
-        })
-        )
-    }
-
-    // println!("{:#?}", json);
-
-    HttpResponse::build(status).finish()
+    bulk_create(&app.app_id, &idx, &data, &client).await
 }
 

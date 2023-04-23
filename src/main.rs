@@ -3,16 +3,16 @@
 
 // use std::sync::Arc;
 
-use actions::EClientTesting;
+use actions::EClient;
 // use actix_web::rt::time::sleep;
 // use actix_web::{HttpResponse};
 use actix_web::{web::{self, Data}, App, HttpServer};
 // use futures::FutureExt;
 // use futures::future::join_all;
-use handlers::{application::{initialize_new_app_id, get_application_list, get_application, delete_application, update_application,}, for_testing::{create_test_data::test_data}, welcome::welcome, index::get_app_list_of_indexes};
+use handlers::{application::{initialize_new_app_id, get_application_list, get_application, delete_application, update_application,}, for_testing::{create_test_data::test_data, file_import::create_by_file, destructive_delete_all::delete_everything}, welcome::welcome, index::{get_app_list_of_indexes, get_index}};
 use handlers::document::{post_search, search, update_document, delete_document, get_document, create_bulk_documents};
 // use handlers::for_testing::get_keys::test_get_keys;
-use handlers::index::{get_index, create_index, update_mappings, get_mappings, delete_index};
+use handlers::index::{create_index, update_mappings, get_mappings, delete_index};
 // use handlers::libs::is_server_up;
 // use serde::Deserialize;
 // use serde_json::{Value, json};
@@ -22,21 +22,32 @@ use middlewares::cors::cors;
 mod actions;
 mod handlers;
 
+// TODO: Read config from file
 pub const APPLICATION_LIST_NAME: &str = "application_list";
+pub const DEFAULT_ELASTIC_SHARDS: usize = 3;
+pub const DEFAULT_ELASTIC_REPLICAS: usize = 3;
+pub const DEFAULT_PARTITIONS: usize = 10;
+
+/// 50MB in bytes
+pub const MAX_FILE_SIZE: usize = 1024 * 1024 * 50;
 
 // ? TODO: A Loop that checks the apps list every 5 or so seconds and stores it in a struct which is accessible by every function
-// ? TODO: Convert all functions into MLI-Compatible functions
 // ! Potential Problem: https://discuss.elastic.co/t/how-to-handle-lots-of-small-indices/272063
 // ! -> Too many indices can crash elasticsearch
+
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Debug mode
-    std::env::set_var("RUST_LOG", "debug");
+    // std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
 
-    let client = Data::new(EClientTesting::new("http://127.0.0.1:9200"));
+    let client = Data::new(EClient::new("http://127.0.0.1:9200"));
 
     // Start server
     HttpServer::new(move || {
@@ -69,6 +80,9 @@ async fn main() -> std::io::Result<()> {
                 .service(
                     web::scope("/another_test")
                         .route("/test_data/{app_id}", web::post().to(test_data))
+                        .route("/file_test/{app_id}/{index}", web::get().to(create_by_file))
+                        .route("/delete/destructive_delete_all", web::delete().to(delete_everything))
+                        // .route("/get_index/{app_id}/{index}", web::get().to(test_get_index))
                         // .route("/document/{app_id}/{index}", web::put().to(update_bulk_documents))
                 )
                 .route("", web::get().to(welcome))

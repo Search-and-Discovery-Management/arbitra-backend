@@ -1,14 +1,25 @@
-use elasticsearch::{indices::{IndicesCreateParts, IndicesPutMappingParts, IndicesGetMappingParts, IndicesDeleteParts, IndicesExistsParts}, cat::CatIndicesParts, http::response::Response, Error};
+use elasticsearch::{
+    indices::{IndicesCreateParts, 
+        IndicesPutMappingParts, 
+        IndicesGetMappingParts, 
+        IndicesDeleteParts, 
+        IndicesExistsParts, 
+        IndicesStatsParts
+    }, 
+    cat::CatIndicesParts, 
+    http::response::Response, 
+    Error
+};
 use serde_json::Value;
 
-use super::{EClientTesting};
+use super::{EClient};
 
-impl EClientTesting{
+impl EClient{
     /// Creates a new index
-    pub async fn create_index(&self, index: &str, body: &Value) -> Result<Response, Error>{
+    pub async fn create_index(&self, index: String, body: &Value) -> Result<Response, Error>{
         self.elastic
             .indices()
-            .create(IndicesCreateParts::Index(index))
+            .create(IndicesCreateParts::Index(&index))
             .body(body)
             .send()
             .await
@@ -25,11 +36,25 @@ impl EClientTesting{
     }
 
     /// Returns either a list of index if index is not supplied, or the specified index
-    pub async fn get_index(&self, index: Option<String>) -> Result<Response, Error>{
+    pub async fn cat_get_index(&self, index: Option<String>) -> Result<Response, Error>{
         self.elastic
             .cat()
             .indices(CatIndicesParts::Index(&[&index.unwrap_or("*".to_string())]))
             .format("json")
+            .send()
+            .await
+    }
+
+    // Returns an index
+    pub async fn get_index_stats(&self, indexes: &[&str], stats: Option<&[&str]>, path: Option<&[&str]>) -> Result<Response, Error>{
+
+        let stats_to_return = stats.unwrap_or(&["*"]);
+
+        self.elastic
+            .indices()
+            .stats(IndicesStatsParts::IndexMetric(indexes, stats_to_return))
+            .level(elasticsearch::params::Level::Indices)
+            .filter_path(path.unwrap_or(&["_all.primaries"]))
             .send()
             .await
     }

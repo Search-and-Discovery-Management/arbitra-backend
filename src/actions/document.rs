@@ -1,9 +1,11 @@
-use elasticsearch::{IndexParts, UpdateParts, SearchParts, GetSourceParts, DeleteParts, http::response::Response, Error, BulkOperation, BulkParts}; //, BulkOperations};
+use std::iter::zip;
+
+use elasticsearch::{IndexParts, UpdateParts, SearchParts, GetSourceParts, DeleteParts, http::response::Response, Error, BulkOperation, BulkParts};
 use serde_json::{Value};
 
-use super::EClientTesting;
+use super::EClient;
 
-impl EClientTesting {
+impl EClient {
     /// Inserts a new document into index
     pub async fn insert_document(&self, index: &str, data: &Value) -> Result<Response, Error>{
         self.elastic
@@ -13,13 +15,20 @@ impl EClientTesting {
             .await
     }
 
-    pub async fn bulk_index_documents(&self, index: &str, data: &[Value]) -> Result<Response, Error> {
-        let body: Vec<BulkOperation<_>> = data
-            .iter()
-            .map(|p| {
-                BulkOperation::index(p).index(index).into()
-            })
-            .collect();
+    pub async fn bulk_create_documents(&self, index: &str, data: &[Value], ids: &[String], shard_number: &[usize]) -> Result<Response, Error> {
+
+        let mut body: Vec<BulkOperation<_>> = vec![];
+
+        for ((val, id), shard) in zip(zip(data.iter(), ids), shard_number){
+            body.push(BulkOperation::create(format!("{id}.{shard}"), val).index(format!("{index}.{shard}")).into())
+        }
+
+        // let body: Vec<BulkOperation<_>> = data
+        //     .iter()
+        //     .map(|p| {
+        //         BulkOperation::index(p).index(index).into()
+        //     })
+        //     .collect();
 
         self.elastic
             .bulk(BulkParts::Index(index))
