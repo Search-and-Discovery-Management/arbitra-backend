@@ -82,7 +82,7 @@ async fn main() -> std::io::Result<()> {
                 .route("/", web::get().to(welcome))
         )
         })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", 7777))?
     .run()
     .await
 
