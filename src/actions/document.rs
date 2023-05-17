@@ -1,6 +1,6 @@
 use std::iter::zip;
 
-use elasticsearch::{IndexParts, UpdateParts, SearchParts, GetSourceParts, DeleteParts, http::response::Response, Error, BulkOperation, BulkParts};
+use elasticsearch::{IndexParts, UpdateParts, SearchParts, GetSourceParts, DeleteParts, http::response::Response, Error, BulkOperation, BulkParts, BulkOperations};
 use serde_json::{Value};
 
 use super::EClient;
@@ -22,13 +22,6 @@ impl EClient {
         for ((val, id), shard) in zip(zip(data.iter(), ids), shard_number){
             body.push(BulkOperation::create(format!("{id}.{shard}"), val).index(format!("{index}.{shard}")).into())
         }
-
-        // let body: Vec<BulkOperation<_>> = data
-        //     .iter()
-        //     .map(|p| {
-        //         BulkOperation::index(p).index(index).into()
-        //     })
-        //     .collect();
 
         self.elastic
             .bulk(BulkParts::Index(index))
@@ -82,20 +75,41 @@ impl EClient {
     }
 
     // Testing
-    // pub async fn bulk_update_documents(&self, index: &str, id_name: &str, data: &[Value]) -> Result<Response, Error> {
-    //     let body: Vec<BulkOperation<_>> = data
-    //         .iter()
-    //         .map(|p| {
-    //             BulkOperation::update(p[id_name].to_string(), p).into()
-    //         })
-    //         .collect();
+    pub async fn bulk_update_documents(&self, index: &str, data: &[Value], ids: &[String], shard_number: &[usize]) -> Result<Response, Error> {
+        // let body: Vec<BulkOperation<_>> = data
+        //     .iter()
+        //     .map(|p| {
+        //         BulkOperation::update(, p).into()
+        //     })
+        //     .collect();
 
-    //     self.elastic
-    //         .bulk(BulkParts::Index(index))
-    //         .body(body)
-    //         .send()
-    //         .await
-    // }
+        let mut body: Vec<BulkOperation<_>> = vec![];
+
+        for ((val, id), shard) in zip(zip(data.iter(), ids), shard_number){
+            body.push(BulkOperation::update(id, val).index(format!("{index}.{shard}")).into())
+        }
+
+        self.elastic
+            .bulk(BulkParts::Index(index))
+            .body(body)
+            .send()
+            .await
+    }
+
+    pub async fn bulk(&self, operations: BulkOperations) -> Result<Response, Error> {
+        // let body: Vec<BulkOperation<_>> = data
+        //     .iter()
+        //     .map(|p| {
+        //         BulkOperation::update(, p).into()
+        //     })
+        //     .collect();
+
+        self.elastic
+            .bulk(BulkParts::None)
+            .body(vec![operations])
+            .send()
+            .await
+    }
 
 
     /// Deletes document on an index

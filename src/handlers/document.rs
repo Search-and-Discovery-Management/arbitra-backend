@@ -1,8 +1,11 @@
+use std::{collections::HashMap, io::Read};
+
+use actix_multipart::form::{MultipartForm, tempfile::TempFile};
 use actix_web::{web::{self, Data}, HttpResponse};
 // use nanoid::nanoid;
 use reqwest::StatusCode;
 use serde_json::{json, Value};
-use crate::{actions::EClient, handlers::{libs::{index_name_builder, search_body_builder, bulk_create}, errors::ErrorTypes}};
+use crate::{actions::EClient, handlers::{libs::{index_name_builder, search_body_builder, bulk_create}, errors::{ErrorTypes, FileErrorTypes}}, AppConfig};
 use super::libs::{check_server_up_exists_app_index, document_search};
 use super::structs::{document_struct::{DocumentSearchQuery, RequiredDocumentID, ReturnFields}, index_struct::RequiredIndex};
 
@@ -10,27 +13,96 @@ use super::structs::{document_struct::{DocumentSearchQuery, RequiredDocumentID, 
 /// Inserting a document with a new field syncs the fields with all other shards
 /// 
 /// All operations requires app_id and the index name
-pub async fn create_bulk_documents(app_index: web::Path<RequiredIndex>, data: web::Json<Vec<Value>>, client: Data::<EClient>) -> HttpResponse {
+pub async fn create_bulk_documents(app_index: web::Path<RequiredIndex>, data: web::Json<Vec<Value>>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {
     println!("Route: Bulk Create Document");
 
     let idx = app_index.index.clone().trim().to_ascii_lowercase();
 
-    match check_server_up_exists_app_index(&app_index.app_id, &idx, &client).await{
+    match check_server_up_exists_app_index(&app_index.app_id, &idx, &client, &app_config).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
 
-    bulk_create(&app_index.app_id, &app_index.index, &data, &client).await
+    bulk_create(&app_index.app_id, &app_index.index, &data, &client, &app_config).await
 }
 
-pub async fn get_document(data: web::Path<RequiredDocumentID>, query: web::Path<ReturnFields>, client: Data::<EClient>) -> HttpResponse {  
+
+#[derive(MultipartForm)]
+pub struct Upload {
+    file: TempFile,
+}
+
+/// Inserts data from file into an existing index (Accepts json, csv, and tsv)
+pub async fn create_by_file(app_index: web::Path<RequiredIndex>, f: MultipartForm<Upload>, client: web::Data<EClient>, app_config: web::Data::<AppConfig>) -> HttpResponse {
+    println!("Route Create Document by File");
+
+    match check_server_up_exists_app_index(&app_index.app_id, &app_index.index, &client, &app_config).await{
+        Ok(_) => (),
+        Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
+    }
+
+    let file_name = f.file.file_name.clone().unwrap();
+    let file_size = f.file.size;
+    let mut file = f.file.file.reopen().unwrap();
+    
+    let file_name_split: Vec<&str> = file_name.split('.').collect();
+    let extension = file_name_split.last().unwrap().to_ascii_lowercase();
+    println!("file name: {:#?}", file_name);
+    println!("file size: {:#?}", file_size);
+
+    // Check the file size
+    if file_size > app_config.max_input_file_size {
+        return HttpResponse::PayloadTooLarge().json(json!({"error": FileErrorTypes::FileTooLarge(file_size, app_config.max_input_file_size).to_string()}))
+    }
+
+    // Check extensions, only allow json, csv, and tsv
+    if extension.eq(&"json".to_string()) {
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).unwrap();
+        let data: Result<Vec<Value>, _> = serde_json::from_str(&contents);
+        match data{
+            Ok(x) => bulk_create(&app_index.app_id, &app_index.index, &x, &client, &app_config).await,
+            Err(_) => HttpResponse::BadRequest().json(json!({"error": FileErrorTypes::InvalidFile("json".to_string()).to_string()}))
+        }
+    
+    } else if extension.eq(&"csv".to_string()) || extension.eq(&"tsv".to_string()) {
+
+        let sep = if extension.eq(&"csv".to_string()){
+            b','
+        } else {
+            b'\t'
+        };
+
+        let mut contents = csv::ReaderBuilder::new()
+            .delimiter(sep)
+            .from_reader(file);
+
+        let mut data: Vec<Value> = vec![];
+        for (curr, i) in contents.deserialize().enumerate() {
+            match i {
+                Ok(val) => {
+                    // Turn into Hashmap type before converting into value
+                    let z: HashMap<String, Value> = val;
+                    data.push(serde_json::to_value(z).unwrap())
+                },
+                Err(_) => return HttpResponse::build(StatusCode::BAD_REQUEST).json(json!({"error": FileErrorTypes::InvalidLine(curr).to_string()})),
+            }
+        }
+
+        return bulk_create(&app_index.app_id, &app_index.index, &data, &client, &app_config).await;
+    } else {
+        return HttpResponse::BadRequest().json(json!({"error": FileErrorTypes::InvalidFileExtension(".json, .csv, .tsv".to_string()).to_string()}))
+    }
+}
+
+pub async fn get_document(data: web::Path<RequiredDocumentID>, query: web::Path<ReturnFields>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {  
     println!("Route: Get Document");
     // App id, index name, and document id
     // This will retrieve the shard number appended on the id then retrieve document located on that shard
 
     let idx = data.index.trim().to_ascii_lowercase();
 
-    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
+    match check_server_up_exists_app_index(&data.app_id, &idx, &client, &app_config).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
@@ -61,7 +133,7 @@ pub async fn get_document(data: web::Path<RequiredDocumentID>, query: web::Path<
 }
 
 /// A Post method for search, also returns a list of documents from index if no query is given
-pub async fn post_search(app_index: web::Path<RequiredIndex>, optional_data: Option<web::Json<DocumentSearchQuery>>, client: Data::<EClient>) -> HttpResponse {
+pub async fn post_search(app_index: web::Path<RequiredIndex>, optional_data: Option<web::Json<DocumentSearchQuery>>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {
     println!("Route: POST Search");
 
     let data = if optional_data.is_some(){
@@ -81,7 +153,7 @@ pub async fn post_search(app_index: web::Path<RequiredIndex>, optional_data: Opt
 
 
     let idx = app_index.index.trim().to_ascii_lowercase();
-    match check_server_up_exists_app_index(&app_index.app_id, &idx, &client).await{
+    match check_server_up_exists_app_index(&app_index.app_id, &idx, &client, &app_config).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
@@ -114,14 +186,14 @@ pub async fn post_search(app_index: web::Path<RequiredIndex>, optional_data: Opt
 }
 
 /// A Get method for search, also returns a list of documents from index if no query is given
-pub async fn search(app_index: web::Path<RequiredIndex>, data: web::Query<DocumentSearchQuery>, client: Data::<EClient>) -> HttpResponse {
+pub async fn search(app_index: web::Path<RequiredIndex>, data: web::Query<DocumentSearchQuery>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {
     println!("Route: Search");
 
     let total_time_taken = std::time::Instant::now();
 
     let idx = app_index.index.trim().to_ascii_lowercase();
 
-    match check_server_up_exists_app_index(&app_index.app_id, &idx, &client).await{
+    match check_server_up_exists_app_index(&app_index.app_id, &idx, &client, &app_config).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
@@ -154,14 +226,14 @@ pub async fn search(app_index: web::Path<RequiredIndex>, data: web::Query<Docume
     }
 }
 
-pub async fn update_document(app_index_doc: web::Path<RequiredDocumentID>, data: web::Json<Value>, client: Data::<EClient>) -> HttpResponse {  
+pub async fn update_document(app_index_doc: web::Path<RequiredDocumentID>, data: web::Json<Value>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {  
     println!("Route: Update Document");
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     // Updates the documents in shard
 
     let idx = app_index_doc.index.trim().to_ascii_lowercase();
 
-    match check_server_up_exists_app_index(&app_index_doc.app_id, &idx, &client).await{
+    match check_server_up_exists_app_index(&app_index_doc.app_id, &idx, &client, &app_config).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
@@ -192,14 +264,14 @@ pub async fn update_document(app_index_doc: web::Path<RequiredDocumentID>, data:
     HttpResponse::build(status).finish()
 }
 
-pub async fn delete_document(data: web::Path<RequiredDocumentID>, client: Data::<EClient>) -> HttpResponse {  
+pub async fn delete_document(data: web::Path<RequiredDocumentID>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {  
     println!("Route: Delete Document");
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     // Deletes the document in shard
 
     let idx = data.index.trim().to_ascii_lowercase();
 
-    match check_server_up_exists_app_index(&data.app_id, &idx, &client).await{
+    match check_server_up_exists_app_index(&data.app_id, &idx, &client, &app_config).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };

@@ -2,7 +2,7 @@ use actix_web::{HttpResponse, web::{self, Data}};
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 
-use crate::{actions::client::EClient, handlers::errors::ErrorTypes, APPLICATION_LIST_NAME};
+use crate::{actions::client::EClient, handlers::errors::ErrorTypes, AppConfig};
 
 use super::libs::{{create_or_exists_index, is_server_up, insert_new_app_name, search_body_builder, get_document}};
 use super::structs::applications_struct::*;
@@ -43,7 +43,7 @@ use super::structs::applications_struct::*;
 
 // Since there must always be an application list, this will always create one if it doesnt exist
 
-pub async fn initialize_new_app_id(data: web::Json<RequiredAppName>, client: Data::<EClient>) -> HttpResponse{
+pub async fn initialize_new_app_id(data: web::Json<RequiredAppName>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse{
     println!("Route: Initialize new app id");
     // If not exist, create a new index called Application_List containing the list of application ids
     // Generate unique id for each application ids
@@ -54,9 +54,9 @@ pub async fn initialize_new_app_id(data: web::Json<RequiredAppName>, client: Dat
     if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
 
     // Checks if the index "application_list" already exist, if not, create
-    let _ = create_or_exists_index(None, APPLICATION_LIST_NAME, None, None, None, &client).await;
+    let _ = create_or_exists_index(None, &app_config.application_list_name, None, None, None, &client, &app_config).await;
 
-    let app_id_status = insert_new_app_name(&data.app_name, &client).await;
+    let app_id_status = insert_new_app_name(&data.app_name, &client, &app_config).await;
 
     match app_id_status {
         StatusCode::CREATED => {
@@ -71,7 +71,7 @@ pub async fn initialize_new_app_id(data: web::Json<RequiredAppName>, client: Dat
     }
 }
 
-pub async fn get_application_list(data: web::Path<OptionalAppName>, client: Data::<EClient>) -> HttpResponse{
+pub async fn get_application_list(data: web::Path<OptionalAppName>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse{
     println!("Route: Get App List");
 
     if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
@@ -80,7 +80,7 @@ pub async fn get_application_list(data: web::Path<OptionalAppName>, client: Data
     // Probably use the search function in documents
 
     let body = search_body_builder(&data.app_name.clone(), &None, &Some("_id,name,indexes".to_string()));
-    let json_resp = client.search_index(APPLICATION_LIST_NAME, &body, &None, &None).await.unwrap().json::<Value>().await.unwrap();
+    let json_resp = client.search_index(&app_config.application_list_name, &body, &None, &None).await.unwrap().json::<Value>().await.unwrap();
     if json_resp["hits"]["hits"].is_null() {
         return HttpResponse::Ok().json(json!([]))
     }
@@ -90,7 +90,7 @@ pub async fn get_application_list(data: web::Path<OptionalAppName>, client: Data
 }
 
 
-pub async fn get_application(data: web::Path<RequiredAppID>, client: Data::<EClient>) -> HttpResponse{
+pub async fn get_application(data: web::Path<RequiredAppID>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse{
     println!("Route: Get App");
     // Search app id with /:app_id
     // If not exist, return 404
@@ -99,7 +99,7 @@ pub async fn get_application(data: web::Path<RequiredAppID>, client: Data::<ECli
 
     if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
 
-    match get_document(APPLICATION_LIST_NAME, &data.app_id, &Some("_id,name,indexes".to_string()), &client).await {
+    match get_document(&app_config.application_list_name, &data.app_id, &Some("_id,name,indexes".to_string()), &client).await {
         Ok((code, value)) => HttpResponse::build(code).json(value),
         Err((code, error)) => HttpResponse::build(code).json(json!({"error": error.to_string()})) 
     }
@@ -108,7 +108,7 @@ pub async fn get_application(data: web::Path<RequiredAppID>, client: Data::<ECli
 // 404 or 200
 // Convert to proper input 
 // Updates the name of an application
-pub async fn update_application(data: web::Json<UpdateApp>, client: Data::<EClient>) -> HttpResponse{
+pub async fn update_application(data: web::Json<UpdateApp>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse{
     println!("Route: Update App");
     // Updates the name of the application
     // This uses document update
@@ -121,12 +121,12 @@ pub async fn update_application(data: web::Json<UpdateApp>, client: Data::<EClie
         }
     });
 
-    let resp = client.update_document(APPLICATION_LIST_NAME, &data.app_id, &body).await.unwrap();
+    let resp = client.update_document(&app_config.application_list_name, &data.app_id, &body).await.unwrap();
 
     HttpResponse::build(resp.status_code()).finish()
 }
 
-pub async fn delete_application(data: web::Path<RequiredAppID>, client: Data::<EClient>) -> HttpResponse{
+pub async fn delete_application(data: web::Path<RequiredAppID>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse{
     println!("Route: Delete App");
     // Deletes application inside application_list
     // If not exist, return 404 
@@ -136,7 +136,7 @@ pub async fn delete_application(data: web::Path<RequiredAppID>, client: Data::<E
 
     if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
 
-    let resp = client.delete_document(APPLICATION_LIST_NAME, &data.app_id).await.unwrap();
+    let resp = client.delete_document(&app_config.application_list_name, &data.app_id).await.unwrap();
     let status = resp.status_code();
     if status.is_success(){
         let indexes = client.cat_get_index(Some(format!("{}.*", data.app_id.to_ascii_lowercase()))).await.unwrap().json::<Vec<Value>>().await.unwrap();

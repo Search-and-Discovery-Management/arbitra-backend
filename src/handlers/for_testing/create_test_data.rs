@@ -4,7 +4,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::{actions::EClient, handlers::{libs::{get_app_indexes_list, create_or_exists_index, bulk_create, is_server_up}, structs::applications_struct::RequiredAppID, errors::ErrorTypes}, APPLICATION_LIST_NAME};
+use crate::{actions::EClient, handlers::{libs::{get_app_indexes_list, create_or_exists_index, bulk_create, is_server_up}, structs::applications_struct::RequiredAppID, errors::ErrorTypes}, AppConfig};
 
 #[derive(Deserialize)]
 pub struct TestDataInsert {
@@ -17,7 +17,7 @@ pub struct TestDataInsert {
 /// Inserts test data from a given URL
 /// 
 /// TODO: Error Handling
-pub async fn test_data(app: web::Path<RequiredAppID>, optional_data: Option<web::Json<TestDataInsert>>, client: Data::<EClient>) -> HttpResponse{
+pub async fn test_data(app: web::Path<RequiredAppID>, optional_data: Option<web::Json<TestDataInsert>>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse{
     println!("Route: Create Test Data");
 
     if !is_server_up(&client).await { return HttpResponse::build(StatusCode::SERVICE_UNAVAILABLE).json(json!({"error": ErrorTypes::ServerDown.to_string()}))}
@@ -34,7 +34,7 @@ pub async fn test_data(app: web::Path<RequiredAppID>, optional_data: Option<web:
     };
     let idx = data.index.clone().unwrap_or("airplanes_v3".to_string());
 
-    let resp = get_app_indexes_list(&app.app_id, &client).await;
+    let resp = get_app_indexes_list(&app.app_id, &client, &app_config).await;
     match resp {
         Ok(mut list) => {
             list.push(idx.clone());
@@ -45,8 +45,8 @@ pub async fn test_data(app: web::Path<RequiredAppID>, optional_data: Option<web:
                     "indexes": list
                 }
             });
-            let _ = client.update_document(APPLICATION_LIST_NAME, &app.app_id, &body).await;
-            let _ = create_or_exists_index(Some(app.app_id.clone()), &idx, None, None, Some(10), &client).await;
+            let _ = client.update_document(&app_config.application_list_name, &app.app_id, &body).await;
+            let _ = create_or_exists_index(Some(app.app_id.clone()), &idx, None, None, Some(10), &client, &app_config).await;
         },
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
@@ -59,6 +59,6 @@ pub async fn test_data(app: web::Path<RequiredAppID>, optional_data: Option<web:
     
     let data = resp.json::<Vec<Value>>().await.unwrap();
 
-    bulk_create(&app.app_id, &idx, &data, &client).await
+    bulk_create(&app.app_id, &idx, &data, &client, &app_config).await
 }
 

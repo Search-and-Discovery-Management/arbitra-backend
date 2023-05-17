@@ -2,13 +2,13 @@
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 
-use crate::{actions::EClient, handlers::{errors::ErrorTypes, libs::document::search_body_builder}, APPLICATION_LIST_NAME};
+use crate::{actions::EClient, handlers::{errors::ErrorTypes, libs::document::search_body_builder}, AppConfig};
 
 use super::document::get_document;
 
 /// Inserts a new app name to the application list
-pub async fn insert_new_app_name(app_name: &str, client: &EClient) -> StatusCode {
-    let exists = exists_app_name(app_name, client).await;
+pub async fn insert_new_app_name(app_name: &str, client: &EClient, app_config: &AppConfig) -> StatusCode {
+    let exists = exists_app_name(app_name, client, app_config).await;
 
     // If exists, return conflict
     if exists {
@@ -21,11 +21,11 @@ pub async fn insert_new_app_name(app_name: &str, client: &EClient) -> StatusCode
     });
 
     // Inserts name into app_id
-    client.insert_document(APPLICATION_LIST_NAME, &body).await.unwrap().status_code()
+    client.insert_document(&app_config.application_list_name, &body).await.unwrap().status_code()
 }
 
-pub async fn get_app_indexes_list(app_id: &str, client: &EClient) -> Result<Vec<String>, (StatusCode, ErrorTypes)> {
-    let (_, value) = match get_document(APPLICATION_LIST_NAME, app_id, &Some("indexes".to_string()), client).await{
+pub async fn get_app_indexes_list(app_id: &str, client: &EClient, app_config: &AppConfig) -> Result<Vec<String>, (StatusCode, ErrorTypes)> {
+    let (_, value) = match get_document(&app_config.application_list_name, app_id, &Some("indexes".to_string()), client).await{
         Ok(x) => x,
         Err((status, _)) => return match status {
             StatusCode::NOT_FOUND => Err((status, ErrorTypes::ApplicationNotFound(app_id.to_string()))),
@@ -63,7 +63,7 @@ pub async fn get_app_indexes_list(app_id: &str, client: &EClient) -> Result<Vec<
 
 // ? TODO: Redo for proper error handling
 /// Checks if the app name exists
-pub async fn exists_app_name(app_name: &str, client: &EClient) -> bool{
+pub async fn exists_app_name(app_name: &str, client: &EClient, app_config: &AppConfig) -> bool{
     // This uses the document search for an exact match, if exists true, else false
 
     /*
@@ -82,7 +82,7 @@ pub async fn exists_app_name(app_name: &str, client: &EClient) -> bool{
     // ! Possibly flawed search since it may find ones with similar name with exact keywords, although its unlikely to match when there is no space
     let body = search_body_builder(&Some(app_name_exact), &Some(vec!["name".to_string()]), &None);
 
-    let resp = client.search_index(APPLICATION_LIST_NAME, &body, &None, &Some(1)).await.unwrap();
+    let resp = client.search_index(&app_config.application_list_name, &body, &None, &Some(1)).await.unwrap();
     let resp_json = resp.json::<Value>().await.unwrap();
     println!("{:#?}", resp_json);
     

@@ -3,13 +3,13 @@ use nanoid::nanoid;
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
-use crate::{handlers::{errors::ErrorTypes, libs::{index_name_builder, check_server_up_exists_app_index}, structs::document_struct::BulkFailures}, actions::EClient};
+use crate::{handlers::{errors::ErrorTypes, libs::{index_name_builder, check_server_up_exists_app_index}, structs::document_struct::BulkFailures}, actions::EClient, AppConfig};
 
 // Convert to StatusCode, Vec<Value>?
-pub async fn bulk_create(app_id: &str, index: &str, data: &[Value], client: &EClient) -> HttpResponse{
+pub async fn bulk_create(app_id: &str, index: &str, data: &[Value], client: &EClient, app_config: &AppConfig) -> HttpResponse{
     let idx = index.trim().to_ascii_lowercase();
 
-    match check_server_up_exists_app_index(app_id, &idx, client).await{
+    match check_server_up_exists_app_index(app_id, &idx, client, app_config).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
@@ -46,7 +46,7 @@ pub async fn bulk_create(app_id: &str, index: &str, data: &[Value], client: &ECl
             }
         }
     }
-    // println!("{:#?}", failures);
+    
     if json["errors"].as_bool().unwrap() {
         status = StatusCode::MULTI_STATUS;
     }
@@ -63,7 +63,11 @@ pub async fn bulk_create(app_id: &str, index: &str, data: &[Value], client: &ECl
     }))
 }
 
-
+/// Gets a single document
+/// 
+/// OK: Returns statuscode and document
+/// 
+/// Errors: Document Not Found, or Unknown
 pub async fn get_document(index: &str, document_id: &str, retrieve_fields: &Option<String>, client: &EClient) -> Result<(StatusCode, Value), (StatusCode, ErrorTypes)>{
     let resp = client.get_document(index, document_id, retrieve_fields).await.unwrap();
 
@@ -82,6 +86,11 @@ pub async fn get_document(index: &str, document_id: &str, retrieve_fields: &Opti
     Ok((status_code, json_resp))
 }
 
+/// Searches an index
+/// 
+/// OK: Returns status, vec list of documents returned
+/// 
+/// Errors: Returns IndexNotFound, BadDataRequest, or Unknown
 pub async fn document_search(app_id: &str, index: &str, body: &Value, from: &Option<i64>, count: &Option<i64>, partitioned: bool, client: &EClient) -> Result<(StatusCode, Value), HttpResponse> {
 
     let mut name = index_name_builder(app_id, index);
@@ -108,14 +117,11 @@ pub async fn document_search(app_id: &str, index: &str, body: &Value, from: &Opt
     let receive = std::time::Instant::now();
     let json_resp = resp.json::<Value>().await.unwrap();
     println!("Body response and conversion elapsed {:#?}ms", receive.elapsed().as_millis());
-
-    // let convert = std::time::Instant::now();
-    // let json_resp = serde_json::from_str(&text_resp).unwrap();
-    // println!("Conversion elapsed {:#?}ms", convert.elapsed().as_millis());
-
+    
     Ok((status, json_resp))
 }
 
+/// Returns a generated search body
 pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<String>>, retrieve_field: &Option<String>) -> Value {
     let fields_to_search = search_in.to_owned().unwrap_or(vec!["*".to_string()]);
 
@@ -135,21 +141,22 @@ pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<
             "match_all": {} 
         },
     });
-        if let Some(term) = search_term {
-
-            body = json!({
-                "_source": {
-                    "includes": fields_to_return
-                },
-                "query": {
-                        "query_string": {
-                            "query": term,
-                            "type": "cross_fields",
-                            "fields": fields_to_search,
-                            "minimum_should_match": "75%"
-                        }
+    
+    // if search term exists
+    if let Some(term) = search_term {
+        body = json!({
+            "_source": {
+                "includes": fields_to_return
+            },
+            "query": {
+                    "query_string": {
+                        "query": term,
+                        "type": "cross_fields",
+                        "fields": fields_to_search,
+                        "minimum_should_match": "75%"
                     }
-                })
-        }
+                }
+            })
+    }
     body
 }

@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 
 use crate::{handlers::{libs::{is_server_up}, errors::ErrorTypes}, actions::EClient};
 
+/// This deletes all indexes in elasticsearch, including "application_list"
 pub async fn delete_everything(client: Data::<EClient>) -> HttpResponse {  
     println!("Route: Delete Everything");
     

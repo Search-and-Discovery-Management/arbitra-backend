@@ -2,7 +2,7 @@ use actix_web::{web::{self, Data}, HttpResponse};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
-use crate::{actions::EClient, APPLICATION_LIST_NAME};
+use crate::{actions::EClient, AppConfig};
 
 use super::structs::{index_struct::*, applications_struct::RequiredAppID};
 use super::libs::{index::index_exists, create_or_exists_index, index_name_builder, is_server_up, check_server_up_exists_app_index, get_app_indexes_list};
@@ -14,7 +14,7 @@ use super::errors::*;
 /// 
 /// Creates x amount of partition indexes such that (default: 10)
 /// app_id.index_name.partition_number
-pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCreate>, client: Data::<EClient>) -> HttpResponse {  
+pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCreate>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {  
     println!("Route: Create Index");
 
     if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})); };
@@ -24,7 +24,7 @@ pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCr
 
     let idx = data.index.trim().to_ascii_lowercase().replace(' ', "_");
 
-    match index_exists(&app.app_id, &idx, &client).await {
+    match index_exists(&app.app_id, &idx, &client, &app_config).await {
         // If exists, return, else, create index
         Ok(_) => HttpResponse::Conflict().json(json!({"error": ErrorTypes::IndexExists(idx).to_string()})),
         Err((status, error, mut list)) => match error {
@@ -38,14 +38,14 @@ pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCr
                         "indexes": list
                     }
                 });
-                let _ = client.update_document(APPLICATION_LIST_NAME, &app.app_id, &body).await;
+                let _ = client.update_document(&app_config.application_list_name, &app.app_id, &body).await;
 
                 let x = match data.partitions {
                     Some(z) => Some(z),
                     None => Some(10)
                 };
 
-                let _ = create_or_exists_index(Some(app.app_id.to_string()), &idx, data.shards, data.replicas, x, &client).await.to_string();
+                let _ = create_or_exists_index(Some(app.app_id.to_string()), &idx, data.shards, data.replicas, x, &client, &app_config).await.to_string();
 
                 HttpResponse::Created().finish()
             },
@@ -55,10 +55,10 @@ pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCr
 }
 
 // TODO: Refactor This
-pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<OptionalIndex>, client: Data<EClient>) -> HttpResponse{
+pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<OptionalIndex>, client: Data<EClient>, app_config: Data::<AppConfig>) -> HttpResponse{
     println!("Route: Get Index");
 
-    let resp = client.get_document(APPLICATION_LIST_NAME, &app.app_id, &Some("indexes".to_string())).await.unwrap();
+    let resp = client.get_document(&app_config.application_list_name, &app.app_id, &Some("indexes".to_string())).await.unwrap();
 
     let status = resp.status_code();
 
@@ -66,7 +66,7 @@ pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<Optio
         return HttpResponse::NotFound().json(json!({"error": ErrorTypes::ApplicationNotFound(app.app_id.to_owned()).to_string()}))
     }
     
-    match get_app_indexes_list(&app.app_id, &client).await {
+    match get_app_indexes_list(&app.app_id, &client, &app_config).await {
         Ok(x) => {
             let mut indexes: Vec<IndexResponse> = vec![];
             if idx_name.index.is_some(){
@@ -118,25 +118,25 @@ pub async fn get_index(app: web::Path<RequiredAppID>, idx_name: web::Query<Optio
 }
 
 
-pub async fn get_app_list_of_indexes(app: web::Path<RequiredAppID>, client: Data::<EClient>) -> HttpResponse {  
+pub async fn get_app_list_of_indexes(app: web::Path<RequiredAppID>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {  
     println!("Route: Get App Indexes List");
     // Gets the list of indexes in an application
 
     if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) };
 
-    match get_app_indexes_list(&app.app_id, &client).await {
+    match get_app_indexes_list(&app.app_id, &client, &app_config).await {
         Ok(list) => HttpResponse::Ok().json(json!(list)),
         Err((status, err)) => HttpResponse::build(status).json(json!({"error": err.to_string()}))
     }
 }
 
 // Gets shard 0 mappings
-pub async fn get_mappings(data: web::Path<RequiredIndex>, client: Data::<EClient>) -> HttpResponse {
+pub async fn get_mappings(data: web::Path<RequiredIndex>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {
     println!("Route: Get Mappings, app id:{}, index mapping being updated: {}", data.app_id, data.index);
 
     let index = data.index.trim().to_ascii_lowercase();
 
-    match check_server_up_exists_app_index(&data.app_id, &index, &client).await{
+    match check_server_up_exists_app_index(&data.app_id, &index, &client, &app_config).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
@@ -161,11 +161,11 @@ pub async fn get_mappings(data: web::Path<RequiredIndex>, client: Data::<EClient
 }
 
 // Updates all shard mappings
-pub async fn update_mappings(data: web::Json<IndexMappingUpdate>, client: Data::<EClient>) -> HttpResponse { 
+pub async fn update_mappings(data: web::Json<IndexMappingUpdate>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse { 
     println!("Route: Update Mappings, app id:{}, index mapping being updated: {}", data.app_id, data.index);
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     let index = data.index.trim().to_ascii_lowercase();
-    match check_server_up_exists_app_index(&data.app_id, &index, &client).await{
+    match check_server_up_exists_app_index(&data.app_id, &index, &client, &app_config).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
@@ -188,18 +188,18 @@ pub async fn update_mappings(data: web::Json<IndexMappingUpdate>, client: Data::
 }
 
 // Remove from app id then delete all shard
-pub async fn delete_index(data: web::Path<RequiredIndex>, client: Data::<EClient>) -> HttpResponse {  
+pub async fn delete_index(data: web::Path<RequiredIndex>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {  
     println!("Route: Delete Index, app id:{}, index being deleted: {}", data.app_id, data.index);
     // if !is_server_up(&client).await { return HttpResponse::ServiceUnavailable().json(json!({"error": ErrorTypes::ServerDown.to_string()})) }
     let index = data.index.trim().to_ascii_lowercase();
-    match check_server_up_exists_app_index(&data.app_id, &index, &client).await{
+    match check_server_up_exists_app_index(&data.app_id, &index, &client, &app_config).await{
         Ok(_) => (),
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()}))
     };
     
     // Removes itself from the application id's index list, then proceed to delete the shard indexes
 
-    match index_exists(&data.app_id, &index, &client).await {
+    match index_exists(&data.app_id, &index, &client, &app_config).await {
         // If app and index exists
         Ok((needle, mut list)) => {
             list.remove(needle);
@@ -209,7 +209,7 @@ pub async fn delete_index(data: web::Path<RequiredIndex>, client: Data::<EClient
                 }
             });
             
-            let resp = client.update_document(APPLICATION_LIST_NAME, &data.app_id, &body).await.unwrap();
+            let resp = client.update_document(&app_config.application_list_name, &data.app_id, &body).await.unwrap();
             let status = resp.status_code();
 
             if status.is_success(){

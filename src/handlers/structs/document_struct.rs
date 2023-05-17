@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Used for GET/POST: Search
 #[derive(Deserialize)]
@@ -32,4 +33,11 @@ pub struct RequiredDocumentID {
     pub app_id: String,
     pub index: String,
     pub document_id: String
+}
+
+/// Used for Bulk Update: Document
+#[derive(Deserialize)]
+pub struct RequiredRequest {
+    pub document_id: String,
+    pub data: Value
 }
