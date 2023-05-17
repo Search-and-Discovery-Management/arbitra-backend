@@ -8,8 +8,6 @@ use super::application::get_app_indexes_list;
 
 
 /// Inserts a new index into an application
-/// TODO: Use futures join all to simultaneously create index
-/// TODO: Change this into app config compatible
 pub async fn create_or_exists_index(app_id: Option<String>, index: &str, shards: Option<usize>, replicas: Option<usize>, partition: Option<usize>, client: &EClient, app_config: &AppConfig) -> StatusCode {
 
     // Check if index exists
@@ -47,6 +45,9 @@ pub async fn create_or_exists_index(app_id: Option<String>, index: &str, shards:
             } else {
                 let mut indexes: Vec<_> = vec![];
 
+
+
+                // Creates num of partitions in a row
                 for i in 0..partition.unwrap_or(app_config.default_partitions) {
                     indexes.push(client.create_index(format!("{index_name}.{i}"), &body))
                 }
@@ -54,7 +55,6 @@ pub async fn create_or_exists_index(app_id: Option<String>, index: &str, shards:
                 let resp = join_all(indexes).await;
 
                 statuses = resp.iter().map(|x| x.as_ref().unwrap().status_code()).collect();
-                
             }
 
         if !statuses.iter().any(|x| !x.is_success()){
@@ -81,16 +81,3 @@ pub async fn index_exists(app_id: &str, index_name: &str, client: &EClient, app_
         None => Err((StatusCode::NOT_FOUND, ErrorTypes::IndexNotFound(index_name.to_string()), list))
     }
 }
-
-// Gets the mapping keys of an index 
-// pub async fn get_mapping_keys(index: &str, client: &EClientTesting) -> Vec<String>{
-//     let maps = client.get_index_mappings(index).await.unwrap();
-//     let resp_json: Value = maps.json::<Value>().await.unwrap();
-//     println!("{:#?}", resp_json);
-//     let val: Result<Vec<(String, Value)>, serde_json::Error> = serde_json::from_value(resp_json[index]["mappings"]["properties"].clone());
-
-//     match val {
-//         Ok(fields) => fields.iter().map(|(x, _)| x.to_string()).collect(),
-//         Err(_) => Vec::new()
-//     }
-// }

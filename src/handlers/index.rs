@@ -9,10 +9,9 @@ use super::libs::{index::index_exists, create_or_exists_index, index_name_builde
 use super::errors::*;
 
 /// Index interfaces with application_id
+///
 /// Creating a new index accesses application_list which finds application_id of that specific index, then adds a new index to the id's list
-/// TODO: Do not allow index name with space, dots, etc and allow only alphabets, numbers, and underscores
 /// 
-/// Creates x amount of partition indexes such that (default: 10)
 /// app_id.index_name.partition_number
 pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCreate>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {  
     println!("Route: Create Index");
@@ -22,7 +21,7 @@ pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCr
     // Adds index to an application id, then creates a number of new index 
     // if get_document returns 404, then app id doesnt exist, if there is but "indexes" field doesnt exist, then put a new one
 
-    let idx = data.index.trim().to_ascii_lowercase().replace(' ', "_");
+    let idx: String = data.index.trim().to_ascii_lowercase().replace(' ', "_").chars().map(|c| if !c.is_ascii_alphanumeric() {'_'} else {c}).collect();
 
     match index_exists(&app.app_id, &idx, &client, &app_config).await {
         // If exists, return, else, create index
@@ -42,7 +41,7 @@ pub async fn create_index(app: web::Path<RequiredAppID>, data: web::Json<IndexCr
 
                 let x = match data.partitions {
                     Some(z) => Some(z),
-                    None => Some(10)
+                    None => Some(app_config.default_partitions)
                 };
 
                 let _ = create_or_exists_index(Some(app.app_id.to_string()), &idx, data.shards, data.replicas, x, &client, &app_config).await.to_string();

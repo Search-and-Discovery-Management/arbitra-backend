@@ -681,6 +681,7 @@
 ## POST /api/document/upload/:app_id/:index
 ----
     Inserts a test index into an application from the given link
+    Inserts a new p
 
 * **URL Params**
 
@@ -692,7 +693,10 @@
 
 * **Data Params**
 
-    `file (json/csv/tsv)`
+    multipart form
+    ```
+    "File": File (json/csv/tsv)
+    ```
 
 * **Headers**
 
@@ -716,7 +720,7 @@
                 ] // Empty if no errors
         }
         ```
-        
+
 * **Error Response**
     * **Code:** 404
         

@@ -24,7 +24,7 @@ pub async fn bulk_create(app_id: &str, index: &str, data: &[Value], client: &ECl
     let rng = fastrand::Rng::new();
     for _ in 0..data.len() {
         shard_numbers.push(rng.usize(0..num_of_indexes));
-        ids.push(format!("{}{}", nanoid!(), nanoid!()));
+        ids.push(nanoid!(26));
     }
 
     let resp = client.bulk_create_documents(&name, data, &ids, &shard_numbers).await.unwrap();
@@ -35,12 +35,12 @@ pub async fn bulk_create(app_id: &str, index: &str, data: &[Value], client: &ECl
     let mut failures: Vec<BulkFailures> = vec![];
     if json["errors"].as_bool().unwrap() {
         for (loc, val) in json["items"].as_array().unwrap().iter().enumerate(){
-            if !val["index"]["error"].is_null(){
+            if !val["create"]["error"].is_null(){
                 failures.push(
                     BulkFailures {
                         document_number: loc,
-                        error: val["index"]["error"]["reason"].as_str().unwrap().to_string(),
-                        status: val["index"]["status"].as_i64().unwrap()
+                        error: val["create"]["error"]["reason"].as_str().unwrap().to_string(),
+                        status: val["create"]["status"].as_i64().unwrap()
                     }
                 );
             }
