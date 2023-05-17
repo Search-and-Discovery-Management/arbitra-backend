@@ -47,53 +47,6 @@
         }
         ```
 
-## POST /api/another_test/file_test/:app_id
-----
-    Inserts a test index into an application from the given link
-
-* **URL Params**
-
-    **Required:**
-
-    `app_id=[string]`
-
-* **Data Params**
-
-    ```
-    {
-        "index": <index_name>, (Optional)
-        "shards": int, (Optional)
-        "replicas": int, (Optional)
-        "link": string (Optional)
-    }
-    ```
-
-* **Headers**
-
-    None
-
-* **Success Response**
-    * **Code:** 200
-    
-        **Content:**
-        ```
-        [
-            {<index_object>},
-            {<index_object>},
-            {<index_object>}
-        ]
-        ```
-* **Error Response**
-    * **Code:** 404
-        
-        **Content:**
-
-        ```
-        {
-            "error": "Application [id] not found"
-        }
-        ```
-
 ## DELETE /api/another_test/delete/delete_everything
 ----
     Deletes all apps and indexes

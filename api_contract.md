@@ -631,13 +631,10 @@
 * **Data Params**
 
     ```
-    {
-        "data": [
-            <data_object>, 
-            <data_object>, 
-            <data_object>
-            ]
-    }
+    [
+        {document_object},
+        ...
+    ]
     ```
 
 * **Headers**
@@ -680,6 +677,104 @@
             "error": "Index [name] not found"
         }
         ```
+
+## POST /api/document/upload/:app_id/:index
+----
+    Inserts a test index into an application from the given link
+
+* **URL Params**
+
+    **Required:**
+
+    `app_id=[string]`
+
+    `index=[string]`
+
+* **Data Params**
+
+    `file (json/csv/tsv)`
+
+* **Headers**
+
+    None
+
+* **Success Response**
+    * **Code:** 200
+    
+        **Content:**
+        ```
+        {
+            "error_count": [int],
+            "has_errors": [bool],
+            "errors": [
+                {
+                    "document_number": [int],
+                    "error": [String],
+                    "status": [StatusCode]
+                },
+                ...
+                ] // Empty if no errors
+        }
+        ```
+        
+* **Error Response**
+    * **Code:** 404
+        
+        **Content:**
+
+        ```
+        {
+            "error": "Application [id] not found"
+        }
+        ```
+
+        OR 
+
+        ```
+        {
+            "error": "Index [name] not found"
+        }
+        ```
+    
+    OR
+
+    * **Code:** 400
+
+        **Content:**
+
+        ```
+        {
+            "error": "Invalid file extension, valid file extensions: [extensions]"
+        }
+        ```
+
+        OR
+
+        ```
+        CSV/TSV
+        {
+            "error": "Found inconsistent data at line [int]"
+        }
+        ```
+
+        OR
+
+        ```
+        {
+            "error": "Invalid [extension] File"
+        }
+        ```
+
+    OR
+
+    * **Code:** 413
+
+        **Content:**
+
+        ```
+        {
+            "error": "File Too Large, found [int] of maximum [int]"
+        }
 
 ## PUT /api/document
 ----
