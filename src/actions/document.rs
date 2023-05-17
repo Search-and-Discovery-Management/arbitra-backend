@@ -1,6 +1,7 @@
 use std::iter::zip;
 
 use elasticsearch::{IndexParts, UpdateParts, SearchParts, GetSourceParts, DeleteParts, http::response::Response, Error, BulkOperation, BulkParts, BulkOperations};
+use ijson::IValue;
 use serde_json::{Value};
 
 use super::EClient;
@@ -15,7 +16,7 @@ impl EClient {
             .await
     }
 
-    pub async fn bulk_create_documents(&self, index: &str, data: &[Value], ids: &[String], shard_number: &[usize]) -> Result<Response, Error> {
+    pub async fn bulk_create_documents(&self, index: &str, data: &[IValue], ids: &[String], shard_number: &[usize]) -> Result<Response, Error> {
 
         let mut body: Vec<BulkOperation<_>> = vec![];
 

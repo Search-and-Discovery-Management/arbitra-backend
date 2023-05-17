@@ -1,4 +1,5 @@
 use actix_web::HttpResponse;
+use ijson::IValue;
 use nanoid::nanoid;
 use reqwest::StatusCode;
 use serde_json::{Value, json};
@@ -6,7 +7,7 @@ use serde_json::{Value, json};
 use crate::{handlers::{errors::ErrorTypes, libs::{index_name_builder, check_server_up_exists_app_index}, structs::document_struct::BulkFailures}, actions::EClient, AppConfig};
 
 // Convert to StatusCode, Vec<Value>?
-pub async fn bulk_create(app_id: &str, index: &str, data: &[Value], client: &EClient, app_config: &AppConfig) -> HttpResponse{
+pub async fn bulk_create(app_id: &str, index: &str, data: &[IValue], client: &EClient, app_config: &AppConfig) -> HttpResponse{
     let idx = index.trim().to_ascii_lowercase();
 
     match check_server_up_exists_app_index(app_id, &idx, client, app_config).await{

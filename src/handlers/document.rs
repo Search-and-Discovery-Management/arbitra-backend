@@ -2,6 +2,7 @@ use std::{collections::HashMap, io::Read};
 
 use actix_multipart::form::{MultipartForm, tempfile::TempFile};
 use actix_web::{web::{self, Data}, HttpResponse};
+use ijson::IValue;
 // use nanoid::nanoid;
 use reqwest::StatusCode;
 use serde_json::{json, Value};
@@ -13,7 +14,7 @@ use super::structs::{document_struct::{DocumentSearchQuery, RequiredDocumentID, 
 /// Inserting a document with a new field syncs the fields with all other shards
 /// 
 /// All operations requires app_id and the index name
-pub async fn create_bulk_documents(app_index: web::Path<RequiredIndex>, data: web::Json<Vec<Value>>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {
+pub async fn create_bulk_documents(app_index: web::Path<RequiredIndex>, data: web::Json<Vec<IValue>>, client: Data::<EClient>, app_config: Data::<AppConfig>) -> HttpResponse {
     println!("Route: Bulk Create Document");
 
     let idx = app_index.index.clone().trim().to_ascii_lowercase();
@@ -59,7 +60,7 @@ pub async fn create_by_file(app_index: web::Path<RequiredIndex>, f: MultipartFor
     if extension.eq(&"json".to_string()) {
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();
-        let data: Result<Vec<Value>, _> = serde_json::from_str(&contents);
+        let data: Result<Vec<IValue>, _> = serde_json::from_str(&contents);
         match data{
             Ok(x) => bulk_create(&app_index.app_id, &app_index.index, &x, &client, &app_config).await,
             Err(_) => HttpResponse::BadRequest().json(json!({"error": FileErrorTypes::InvalidFile("json".to_string()).to_string()}))
@@ -77,13 +78,13 @@ pub async fn create_by_file(app_index: web::Path<RequiredIndex>, f: MultipartFor
             .delimiter(sep)
             .from_reader(file);
 
-        let mut data: Vec<Value> = vec![];
+        let mut data: Vec<IValue> = vec![];
         for (curr, i) in contents.deserialize().enumerate() {
             match i {
                 Ok(val) => {
                     // Turn into Hashmap type before converting into value
                     let z: HashMap<String, Value> = val;
-                    data.push(serde_json::to_value(z).unwrap())
+                    data.push(ijson::to_value(z).unwrap())
                 },
                 Err(_) => return HttpResponse::build(StatusCode::BAD_REQUEST).json(json!({"error": FileErrorTypes::InvalidLine(curr).to_string()})),
             }

@@ -1,8 +1,9 @@
 use actix_web::{HttpResponse, web::{Data, self}};
+use ijson::IValue;
 use reqwest::StatusCode;
 // use futures::future::join_all;
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::{json};
 
 use crate::{actions::EClient, handlers::{libs::{get_app_indexes_list, create_or_exists_index, bulk_create, is_server_up}, structs::applications_struct::RequiredAppID, errors::ErrorTypes}, AppConfig};
 
@@ -57,7 +58,7 @@ pub async fn test_data(app: web::Path<RequiredAppID>, optional_data: Option<web:
         .await
         .unwrap();
     
-    let data = resp.json::<Vec<Value>>().await.unwrap();
+    let data = resp.json::<Vec<IValue>>().await.unwrap();
 
     println!("{:#?}", data[0]);
 
