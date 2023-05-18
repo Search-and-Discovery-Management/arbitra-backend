@@ -1,6 +1,6 @@
 use actions::EClient;
 use actix_web::{web::{self, Data}, App, HttpServer};
-use handlers::{application::{initialize_new_app_id, get_application_list, get_application, delete_application, update_application,}, for_testing::{create_test_data::test_data, destructive_delete_all::delete_everything, bulk::{update_bulk_documents, test_update}}, welcome::welcome, index::{get_app_list_of_indexes, get_index}, document::create_by_file};
+use handlers::{application::{initialize_new_app_id, get_application_list, get_application, delete_application, update_application,}, for_testing::{create_test_data::test_data, destructive_delete_all::delete_everything, bulk::{update_bulk_documents, test_update}, index_get_all::get_indexes_list_debug}, welcome::welcome, index::{get_app_list_of_indexes, get_index}, document::create_by_file};
 use handlers::document::{post_search, search, update_document, delete_document, get_document, create_bulk_documents};
 use handlers::index::{create_index, update_mappings, get_mappings, delete_index};
 mod middlewares;
@@ -72,6 +72,7 @@ async fn main() -> std::io::Result<()> {
                         .route("/delete/destructive_delete_all", web::delete().to(delete_everything))
                         .route("/update/bulk/update/{app_id}/{index}", web::put().to(test_update))
                         .route("/document/{app_id}/{index}", web::put().to(update_bulk_documents))
+                        .route("/index_list", web::get().to(get_indexes_list_debug))
                 )
                 .route("", web::get().to(welcome))
                 .route("/", web::get().to(welcome))
