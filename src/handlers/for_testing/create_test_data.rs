@@ -33,7 +33,7 @@ pub async fn test_data(app: web::Path<RequiredAppID>, optional_data: Option<web:
             link: None,
         }
     };
-    let idx = data.index.clone().unwrap_or("airplanes_v3".to_string());
+    let idx = data.index.clone().unwrap_or("airports".to_string());
 
     let resp = get_app_indexes_list(&app.app_id, &client, &app_config).await;
     match resp {
@@ -47,7 +47,7 @@ pub async fn test_data(app: web::Path<RequiredAppID>, optional_data: Option<web:
                 }
             });
             let _ = client.update_document(&app_config.application_list_name, &app.app_id, &body).await;
-            let _ = create_or_exists_index(Some(app.app_id.clone()), &idx, None, None, Some(10), &client, &app_config).await;
+            let _ = create_or_exists_index(Some(app.app_id.clone()), &idx, None, None, Some(app_config.default_partitions), &client, &app_config).await;
         },
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
@@ -60,7 +60,9 @@ pub async fn test_data(app: web::Path<RequiredAppID>, optional_data: Option<web:
     
     let data = resp.json::<Vec<IValue>>().await.unwrap();
 
+    println!("{:#?}", idx);
     println!("{:#?}", data[0]);
+    
 
     bulk_create(&app.app_id, &idx, &data, &client, &app_config).await
 }

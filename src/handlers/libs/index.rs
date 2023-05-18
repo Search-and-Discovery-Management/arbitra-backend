@@ -45,8 +45,6 @@ pub async fn create_or_exists_index(app_id: Option<String>, index: &str, shards:
             } else {
                 let mut indexes: Vec<_> = vec![];
 
-
-
                 // Creates num of partitions in a row
                 for i in 0..partition.unwrap_or(app_config.default_partitions) {
                     indexes.push(client.create_index(format!("{index_name}.{i}"), &body))

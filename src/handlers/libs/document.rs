@@ -17,7 +17,7 @@ pub async fn bulk_create(app_id: &str, index: &str, data: &[IValue], client: &EC
 
     let name = index_name_builder(app_id, &idx);
 
-    let num_of_indexes = client.cat_get_index(Some(format!("{name}.*"))).await.unwrap().json::<Vec<Value>>().await.unwrap().len();
+    let num_of_indexes = client.cat_get_index(Some(format!("{name}.*"))).await.unwrap().json::<Vec<IValue>>().await.unwrap().len();
 
     let mut shard_numbers: Vec<usize> = vec![];
     let mut ids: Vec<String> = vec![];

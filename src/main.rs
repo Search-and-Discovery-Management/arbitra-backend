@@ -9,11 +9,6 @@ use middlewares::cors::cors;
 mod actions;
 mod handlers;
 
-use mimalloc::MiMalloc;
-
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
-
 pub struct AppConfig {
     application_list_name: String,
     default_elastic_shards: usize,
