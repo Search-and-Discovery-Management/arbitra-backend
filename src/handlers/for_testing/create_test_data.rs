@@ -60,8 +60,8 @@ pub async fn test_data(app: web::Path<RequiredAppID>, optional_data: Option<web:
     
     let data = resp.json::<Vec<IValue>>().await.unwrap();
 
-    println!("{:#?}", idx);
-    println!("{:#?}", data[0]);
+    println!("index: {:#?}", idx);
+    println!("count: {:#?}", data.len());
     
 
     bulk_create(&app.app_id, &idx, &data, &client, &app_config).await
