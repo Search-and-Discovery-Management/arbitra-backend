@@ -2,9 +2,13 @@ use actix_web::HttpResponse;
 use ijson::IValue;
 use nanoid::nanoid;
 use reqwest::StatusCode;
+use serde::{Serialize, Deserialize};
 use serde_json::{Value, json};
 
 use crate::{handlers::{errors::ErrorTypes, libs::{index_name_builder, check_server_up_exists_app_index}, structs::document_struct::BulkFailures}, actions::EClient, AppConfig};
+
+#[derive(Serialize, Deserialize)]
+pub struct EmptyStruct {}
 
 // Convert to StatusCode, Vec<Value>?
 pub async fn bulk_create(app_id: &str, index: &str, data: &[IValue], client: &EClient, app_config: &AppConfig) -> HttpResponse{
@@ -23,7 +27,7 @@ pub async fn bulk_create(app_id: &str, index: &str, data: &[IValue], client: &EC
 
     println!("{:#?}", indexes_name);
 
-    let num_of_indexes = client.cat_get_index(Some(indexes_name)).await.unwrap().json::<Vec<_>>().await.unwrap().len();
+    let num_of_indexes = client.cat_get_index(Some(indexes_name)).await.unwrap().json::<Vec<EmptyStruct>>().await.unwrap().len();
 
     // let num_of_indexes = found_indexes.len();
 
