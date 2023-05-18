@@ -23,7 +23,9 @@ pub async fn bulk_create(app_id: &str, index: &str, data: &[IValue], client: &EC
 
     println!("{:#?}", indexes_name);
 
-    let num_of_indexes = client.cat_get_index(Some(indexes_name)).await.unwrap().json::<Vec<IValue>>().await.unwrap().len();
+    let found_indexes = client.cat_get_index(Some(indexes_name)).await.unwrap().json::<Vec<IValue>>().await.unwrap();
+
+    let num_of_indexes = found_indexes.len();
 
     println!("{:#?}", num_of_indexes);
 
