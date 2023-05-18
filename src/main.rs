@@ -9,6 +9,10 @@ use middlewares::cors::cors;
 mod actions;
 mod handlers;
 
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 pub struct AppConfig {
     application_list_name: String,
     default_elastic_shards: usize,
@@ -16,7 +20,6 @@ pub struct AppConfig {
     default_partitions: usize,
     max_input_file_size: usize
 }
-
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -64,7 +67,7 @@ async fn main() -> std::io::Result<()> {
                 .route("/search/{app_id}/{index}", web::get().to(search))
                 .route("/document/{app_id}/{index}/{document_id}", web::put().to(update_document))
                 .route("/document/{app_id}/{index}/{document_id}", web::delete().to(delete_document))
-                .route("/document/upload/{app_id}/{index}", web::get().to(create_by_file))
+                .route("/upload/document/{app_id}/{index}", web::post().to(create_by_file))
         
                 .service(
                     web::scope("/another_test")
@@ -72,7 +75,7 @@ async fn main() -> std::io::Result<()> {
                         .route("/delete/destructive_delete_all", web::delete().to(delete_everything))
                         .route("/update/bulk/update/{app_id}/{index}", web::put().to(test_update))
                         .route("/document/{app_id}/{index}", web::put().to(update_bulk_documents))
-                        .route("/index_list", web::get().to(get_indexes_list_debug))
+                        .route("/index_list", web::post().to(get_indexes_list_debug))
                 )
                 .route("", web::get().to(welcome))
                 .route("/", web::get().to(welcome))
