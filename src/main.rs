@@ -21,11 +21,21 @@ pub struct AppConfig {
     max_input_file_size: usize
 }
 
+// pub struct FileAppConfig {
+//     application_list_name: Option<String>, // App list name
+//     default_elastic_shards: Option<usize>, // Elastic shards
+//     default_elastic_replicas: Option<usize>, // Elastic replicas
+//     default_partitions: Option<usize>, // DPS defined index shards
+//     max_input_file_size: Option<usize>, // Maximum file size 
+//     elasticsearch_url: Option<String>, // URL to Elasticsearch Server
+//     run_address: Option<String> // What url should this server run on
+// }
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Debug mode
-    std::env::set_var("RUST_LOG", "debug");
-    env_logger::init();
+    // std::env::set_var("RUST_LOG", "debug");
+    // env_logger::init();
 
     // Default
     // TODO: Read config from file

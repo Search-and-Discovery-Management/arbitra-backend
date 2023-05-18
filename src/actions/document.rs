@@ -16,11 +16,12 @@ impl EClient {
             .await
     }
 
-    pub async fn bulk_create_documents(&self, index: &str, data: &[IValue], ids: &[String], shard_number: &[usize]) -> Result<Response, Error> {
+    /// Inserts bulk document, consumes data, ids, and shard_number to save memory
+    pub async fn bulk_create_documents(&self, index: &str, data: Vec<IValue>, ids: Vec<String>, shard_number: Vec<usize>) -> Result<Response, Error> {
 
         let mut body: Vec<BulkOperation<_>> = vec![];
 
-        for ((val, id), shard) in zip(zip(data.iter(), ids), shard_number){
+        for ((val, id), shard) in zip(zip(data.into_iter(), ids.into_iter()), shard_number.into_iter()){
             body.push(BulkOperation::create(format!("{id}.{shard}"), val).index(format!("{index}.{shard}")).into())
         }
 

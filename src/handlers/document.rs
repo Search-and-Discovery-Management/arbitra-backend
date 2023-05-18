@@ -24,7 +24,7 @@ pub async fn create_bulk_documents(app_index: web::Path<RequiredIndex>, data: we
         Err((status, err)) => return HttpResponse::build(status).json(json!({"error": err.to_string()})),
     }
 
-    bulk_create(&app_index.app_id, &app_index.index, &data, &client, &app_config).await
+    bulk_create(&app_index.app_id, &app_index.index, data.into_inner(), &client, &app_config).await
 }
 
 
@@ -62,7 +62,7 @@ pub async fn create_by_file(app_index: web::Path<RequiredIndex>, f: MultipartFor
         file.read_to_string(&mut contents).unwrap();
         let data: Result<Vec<IValue>, _> = serde_json::from_str(&contents);
         match data{
-            Ok(x) => bulk_create(&app_index.app_id, &app_index.index, &x, &client, &app_config).await,
+            Ok(x) => bulk_create(&app_index.app_id, &app_index.index, x, &client, &app_config).await,
             Err(_) => HttpResponse::BadRequest().json(json!({"error": FileErrorTypes::InvalidFile("json".to_string()).to_string()}))
         }
     
@@ -90,7 +90,7 @@ pub async fn create_by_file(app_index: web::Path<RequiredIndex>, f: MultipartFor
             }
         }
 
-        return bulk_create(&app_index.app_id, &app_index.index, &data, &client, &app_config).await;
+        return bulk_create(&app_index.app_id, &app_index.index, data, &client, &app_config).await;
     } else {
         return HttpResponse::BadRequest().json(json!({"error": FileErrorTypes::InvalidFileExtension(".json, .csv, .tsv".to_string()).to_string()}))
     }

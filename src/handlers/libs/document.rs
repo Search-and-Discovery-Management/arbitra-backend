@@ -11,7 +11,7 @@ use crate::{handlers::{errors::ErrorTypes, libs::{index_name_builder, check_serv
 pub struct EmptyStruct {}
 
 // Convert to StatusCode, Vec<Value>?
-pub async fn bulk_create(app_id: &str, index: &str, data: &[IValue], client: &EClient, app_config: &AppConfig) -> HttpResponse{
+pub async fn bulk_create(app_id: &str, index: &str, data: Vec<IValue>, client: &EClient, app_config: &AppConfig) -> HttpResponse{
     let idx = index.trim().to_ascii_lowercase();
 
     match check_server_up_exists_app_index(app_id, &idx, client, app_config).await{
@@ -42,7 +42,7 @@ pub async fn bulk_create(app_id: &str, index: &str, data: &[IValue], client: &EC
         ids.push(nanoid!(26));
     }
 
-    let resp = client.bulk_create_documents(&name, data, &ids, &shard_numbers).await.unwrap();
+    let resp = client.bulk_create_documents(&name, data, ids, shard_numbers).await.unwrap();
 
     let mut status = resp.status_code();
     let json: Value = resp.json::<Value>().await.unwrap();
