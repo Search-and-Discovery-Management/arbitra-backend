@@ -162,16 +162,17 @@ pub async fn post_search(app_index: web::Path<RequiredIndex>, optional_data: Opt
     
     let fields_to_search = data.search_in.to_owned().map(|val| val.split(',').map(|x| x.trim().to_string()).collect());
 
-    let min_before_expansion = data.min_before_expansion.unwrap_or(3);
+    let min_before_expansion = data.min_before_expansion.unwrap_or(app_config.default_min_search_wildcard_expansion);
 
-    let term = if data.search_term.is_some() && data.wildcards.unwrap_or(false){
-        // let mut z = data.search_term.as_deref().unwrap().trim().to_string().replace(' ', "* ");
-        // z.push('*');
-        // Some(z)
-        let z: Vec<String> = data.search_term.as_deref().unwrap().split(' ').map(|s| if s.len() >= min_before_expansion {format!("{s}*")} else {s.to_string()}).collect();
+    let term = if data.search_term.is_some() && data.wildcards.unwrap_or(false) && !data.search_term.as_deref().eq(&Some("*")){
+        let z: Vec<String> = data.search_term.as_deref().unwrap().trim().split(' ').map(|s| if s.len() >= min_before_expansion {format!("{s}*")} else {s.to_string()}).collect();
         Some(z.join(" "))
     } else {
-        data.search_term.clone()
+        if !data.search_term.as_deref().eq(&Some("*")){
+            data.search_term.clone()
+        } else {
+            None
+        }
     };
 
     let body = search_body_builder(&term, &fields_to_search, &data.return_fields);
@@ -206,16 +207,17 @@ pub async fn search(app_index: web::Path<RequiredIndex>, data: web::Query<Docume
     };
     
     let fields_to_search = data.search_in.to_owned().map(|val| val.split(',').map(|x| x.trim().to_string()).collect());
-    let min_before_expansion = data.min_before_expansion.unwrap_or(3);
+    let min_before_expansion = data.min_before_expansion.unwrap_or(app_config.default_min_search_wildcard_expansion);
 
-    let term = if data.search_term.is_some() && data.wildcards.unwrap_or(false){
-        // let mut z = data.search_term.as_deref().unwrap().trim().to_string().replace(' ', "* ");
-        // z.push('*');
-        // Some(z)
-        let z: Vec<String> = data.search_term.as_deref().unwrap().split(' ').map(|s| if s.len() > min_before_expansion {format!("{s}*")} else {s.to_string()}).collect();
+    let term = if data.search_term.is_some() && data.wildcards.unwrap_or(false) && !data.search_term.as_deref().eq(&Some("*")){
+        let z: Vec<String> = data.search_term.as_deref().unwrap().trim().split(' ').map(|s| if s.len() >= min_before_expansion {format!("{s}*")} else {s.to_string()}).collect();
         Some(z.join(" "))
     } else {
-        data.search_term.clone()
+        if !data.search_term.as_deref().eq(&Some("*")){
+            data.search_term.clone()
+        } else {
+            None
+        }
     };
 
     let body = search_body_builder(&term, &fields_to_search, &data.return_fields);

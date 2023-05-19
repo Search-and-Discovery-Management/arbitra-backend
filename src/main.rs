@@ -18,7 +18,8 @@ pub struct AppConfig {
     default_elastic_shards: usize,
     default_elastic_replicas: usize,
     default_partitions: usize,
-    max_input_file_size: usize
+    max_input_file_size: usize,
+    default_min_search_wildcard_expansion: usize
 }
 
 // pub struct FileAppConfig {
@@ -44,7 +45,8 @@ async fn main() -> std::io::Result<()> {
         default_elastic_shards: 3,
         default_elastic_replicas: 3,
         default_partitions: 10,
-        max_input_file_size: 1024 * 1024 * 50
+        max_input_file_size: 1024 * 1024 * 50,
+        default_min_search_wildcard_expansion: 2
     };
 
     let client = Data::new(EClient::new("http://127.0.0.1:9200"));
