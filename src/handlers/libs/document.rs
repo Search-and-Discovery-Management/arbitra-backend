@@ -67,7 +67,7 @@ pub async fn bulk_create(app_id: &str, index: &str, data: Vec<IValue>, client: &
     }
 
     // Force elastic to immediately index the new documents
-    let body = search_body_builder(&Some("".to_string()), &Some(vec!["".to_string()]), &Some("".to_string()));
+    let body = search_body_builder(&Some("".to_string()), &Some(vec!["".to_string()]),  &Some("".to_string()));
     let z = document_search(app_id, index, &body, &Some(0), &Some(0), true, client).await;
     println!("{}", z.unwrap().0);
     
@@ -164,14 +164,14 @@ pub fn search_body_builder(search_term: &Option<String>, search_in: &Option<Vec<
                 "includes": fields_to_return
             },
             "query": {
-                    "query_string": {
-                        "query": term,
-                        "type": "cross_fields",
-                        "fields": fields_to_search,
-                        "minimum_should_match": "75%"
-                    }
+                "query_string": {
+                    "query": term,
+                    "type": "cross_fields",
+                    "fields": fields_to_search,
+                    "minimum_should_match": "75%"
                 }
-            })
+            }
+        })
     }
     body
 }

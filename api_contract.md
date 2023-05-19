@@ -481,7 +481,8 @@
         "return_fields": <fields, comma separated>, (Optional)
         "from": int, (Optional)
         "count": int, (Optional)
-        "wildcards": bool (Optional)
+        "wildcards": bool, (Optional)
+        "min_before_expansion": int, (Optional)
     }
     ```
 
@@ -678,10 +679,9 @@
         }
         ```
 
-## POST /api/document/upload/:app_id/:index
+## POST /api/upload/document/:app_id/:index
 ----
-    Inserts a test index into an application from the given link
-    Inserts a new p
+    Inserts data inside a file (JSON/CSV/TSV) to an index
 
 * **URL Params**
 

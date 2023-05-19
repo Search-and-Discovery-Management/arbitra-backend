@@ -10,6 +10,7 @@ pub struct DocumentSearchQuery {
     pub from: Option<i64>,
     pub count: Option<i64>,
     pub wildcards: Option<bool>,
+    pub min_before_expansion: Option<usize>
     // pub min_percentage_match: Option<i64>
 }
 
